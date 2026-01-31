@@ -72,8 +72,10 @@ defmodule MyAppWeb.DatastarHTML do
     ~H"""
       <div 
         id={"ds-live-#{@session_id}"} 
-        data-on-load={"@get('#{@stream_path}?datastar=' + encodeURIComponent(JSON.stringify({session_id: '#{@session_id}'})))"}>
-          {@inner_html}
+        data-signals={"{session_id: '#{@session_id}'}"}
+        data-init__once={"@get('#{@stream_path}', {openWhenHidden: true})"}
+      >
+        {@inner_html}
       </div>
     """
   end
