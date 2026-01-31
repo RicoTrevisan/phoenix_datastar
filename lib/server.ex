@@ -239,15 +239,19 @@ defmodule PhoenixDatastar.Server do
     :ok
   end
 
-  # Send update to subscriber - either granular patches or signals
   defp send_update(nil, _socket), do: :ok
 
   defp send_update(subscriber, socket) do
+    # Always send signals when assigns have changed
+    signals = Helpers.user_signals(socket.assigns)
+
+    if map_size(signals) > 0 do
+      send(subscriber, {:datastar_signals, signals})
+    end
+
+    # Send patches if any exist
     if socket.patches != [] do
       send(subscriber, {:datastar_patches, socket.patches})
-    else
-      signals = Helpers.user_signals(socket.assigns)
-      send(subscriber, {:datastar_signals, signals})
     end
   end
 
