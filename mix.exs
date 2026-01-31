@@ -14,7 +14,8 @@ defmodule PhoenixDatastar.MixProject do
       package: package(),
       docs: docs(),
       name: "PhoenixDatastar",
-      description: "A LiveView-like experience for Phoenix using Datastar's SSE + Signals architecture",
+      description:
+        "A LiveView-like experience for Phoenix using Datastar's SSE + Signals architecture",
       source_url: @source_url,
       homepage_url: @source_url
     ]
@@ -33,6 +34,7 @@ defmodule PhoenixDatastar.MixProject do
       {:phoenix_live_view, "~> 1.0"},
       {:plug, "~> 1.14"},
       {:jason, "~> 1.4"},
+      {:igniter, "~> 0.5", optional: true},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false}
     ]
   end
