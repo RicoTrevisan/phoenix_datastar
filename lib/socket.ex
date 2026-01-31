@@ -101,7 +101,41 @@ defmodule PhoenixDatastar.Socket do
       html
       |> Phoenix.HTML.Safe.to_iodata()
       |> IO.iodata_to_binary()
+      |> maybe_strip_debug_annotations()
 
     %{socket | patches: socket.patches ++ [{selector, html_binary}]}
+  end
+
+  @doc """
+  Strips Phoenix LiveView debug annotations from HTML if they are enabled.
+
+  Checks the LiveView config for `debug_heex_annotations` and `debug_attributes`
+  and only strips when those features are enabled.
+  """
+  @spec maybe_strip_debug_annotations(String.t()) :: String.t()
+  def maybe_strip_debug_annotations(html) when is_binary(html) do
+    heex_annotations? = Application.get_env(:phoenix_datastar, :strip_heex_annotations, true)
+    debug_attributes? = Application.get_env(:phoenix_datastar, :strip_debug_attributes, true)
+
+    html
+    |> maybe_strip_heex_comments(heex_annotations?)
+    |> maybe_strip_debug_attributes(debug_attributes?)
+  end
+
+  defp maybe_strip_heex_comments(html, false), do: html
+
+  defp maybe_strip_heex_comments(html, true) do
+    html
+    # Remove HEEx debug comments: <!-- @caller ... -->, <!-- <Component> ... -->, <!-- </Component> -->
+    |> String.replace(~r/<!--\s*@caller\s+[^>]*-->/s, "")
+    |> String.replace(~r/<!--\s*<[^>]+>\s+[^>]*-->/s, "")
+    |> String.replace(~r/<!--\s*<\/[^>]+>\s*-->/s, "")
+  end
+
+  defp maybe_strip_debug_attributes(html, false), do: html
+
+  defp maybe_strip_debug_attributes(html, true) do
+    # Remove data-phx-loc attributes
+    String.replace(html, ~r/\s*data-phx-loc="[^"]*"/, "")
   end
 end

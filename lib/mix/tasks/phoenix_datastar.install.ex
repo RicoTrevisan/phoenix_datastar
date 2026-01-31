@@ -8,9 +8,8 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
 
   This will:
   1. Add the Registry to your application's supervision tree
-  2. Configure LiveView to disable debug annotations (required for clean HTML)
-  3. Configure the HTML module for PhoenixDatastar
-  4. Create the DatastarHTML module
+  2. Configure the HTML module for PhoenixDatastar
+  3. Create the DatastarHTML module
 
   You will also receive instructions for manual steps:
   - Adding the Datastar JavaScript to your layout
@@ -37,7 +36,6 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
 
     igniter
     |> add_registry_to_supervision_tree()
-    |> disable_liveview_debug_annotations()
     |> configure_html_module(html_module)
     |> create_datastar_html_module(html_module)
     |> add_manual_step_notices(web_module_path)
@@ -47,28 +45,6 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     Igniter.Project.Application.add_new_child(
       igniter,
       {Registry, [keys: :unique, name: PhoenixDatastar.Registry]}
-    )
-  end
-
-  defp disable_liveview_debug_annotations(igniter) do
-    igniter
-    |> Igniter.Project.Config.configure(
-      "dev.exs",
-      :phoenix_live_view,
-      [:debug_heex_annotations],
-      false
-    )
-    |> Igniter.Project.Config.configure(
-      "dev.exs",
-      :phoenix_live_view,
-      [:debug_attributes],
-      false
-    )
-    |> Igniter.Project.Config.configure(
-      "dev.exs",
-      :phoenix_live_view,
-      [:enable_expensive_runtime_checks],
-      false
     )
   end
 
