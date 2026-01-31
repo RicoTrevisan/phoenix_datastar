@@ -39,13 +39,11 @@ defmodule PhoenixDatastar.Helpers do
   end
 
   @doc """
-  Renders a view's HTML to a binary string.
+  Renders a view's template.
   """
-  @spec render_html(module(), PhoenixDatastar.Socket.t()) :: String.t()
+  @spec render_html(module(), PhoenixDatastar.Socket.t()) :: Phoenix.HTML.Safe.t()
   def render_html(view, socket) do
     view.render(socket.assigns)
-    |> Phoenix.HTML.Safe.to_iodata()
-    |> IO.iodata_to_binary()
   end
 
   @doc """
