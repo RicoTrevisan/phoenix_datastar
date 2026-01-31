@@ -41,18 +41,7 @@ children = [
 ]
 ```
 
-### 3. Disable LiveView debug annotations
-
-In your `config/dev.exs`, disable LiveView's debug annotations to prevent excessive markup in the rendered HTML:
-
-```elixir
-config :phoenix_live_view,
-  debug_heex_annotations: false,
-  debug_attributes: false,
-  enable_expensive_runtime_checks: false
-```
-
-### 4. Configure the HTML module
+### 3. Configure the HTML module
 
 In your `config/config.exs`:
 
@@ -60,9 +49,19 @@ In your `config/config.exs`:
 config :phoenix_datastar, :html_module, MyAppWeb.DatastarHTML
 ```
 
-### 5. Create the HTML module
+### 4. Strip debug annotations in dev
 
-Create a module that renders the mount template:
+In your `config/dev.exs`, enable stripping of LiveView debug annotations from SSE patches:
+
+```elixir
+config :phoenix_datastar, :strip_debug_annotations, true
+```
+
+This removes `<!-- @caller ... -->` comments and `data-phx-loc` attributes from SSE patches, which would otherwise interfere with Datastar's DOM patching. The initial page load keeps annotations intact for debugging.
+
+### 5. Create the HTML module (optional)
+
+Create a module that renders the mount template. This is only needed if you want to customize the wrapper:
 
 ```elixir
 defmodule MyAppWeb.DatastarHTML do
@@ -82,7 +81,7 @@ defmodule MyAppWeb.DatastarHTML do
 end
 ```
 
-### 6. Import the router macro
+### 6. Import the router macro (required)
 
 In your router:
 

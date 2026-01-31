@@ -9,7 +9,8 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
   This will:
   1. Add the Registry to your application's supervision tree
   2. Configure the HTML module for PhoenixDatastar
-  3. Create the DatastarHTML module
+  3. Enable stripping of debug annotations in dev (for SSE patches)
+  4. Create the DatastarHTML module
 
   You will also receive instructions for manual steps:
   - Adding the Datastar JavaScript to your layout
@@ -37,6 +38,7 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     igniter
     |> add_registry_to_supervision_tree()
     |> configure_html_module(html_module)
+    |> configure_strip_debug_annotations()
     |> create_datastar_html_module(html_module)
     |> add_manual_step_notices(web_module_path)
   end
@@ -55,6 +57,16 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
       :phoenix_datastar,
       [:html_module],
       html_module
+    )
+  end
+
+  defp configure_strip_debug_annotations(igniter) do
+    Igniter.Project.Config.configure_new(
+      igniter,
+      "dev.exs",
+      :phoenix_datastar,
+      [:strip_debug_annotations],
+      true
     )
   end
 
