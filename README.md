@@ -18,7 +18,18 @@ end
 
 ## Setup
 
-### 1. Add to your supervision tree
+### 1. Add Datastar to your layout
+
+Include the Datastar JavaScript library in your layout's `<head>`:
+
+```html
+<script
+  type="module"
+  src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.7/bundles/datastar.js"
+></script>
+```
+
+### 2. Add to your supervision tree
 
 In your `application.ex`:
 
@@ -30,7 +41,7 @@ children = [
 ]
 ```
 
-### 2. Configure the HTML module
+### 3. Configure the HTML module
 
 In your `config/config.exs`:
 
@@ -38,7 +49,7 @@ In your `config/config.exs`:
 config :phoenix_datastar, :html_module, MyAppWeb.DatastarHTML
 ```
 
-### 3. Create the HTML module
+### 4. Create the HTML module
 
 Create a module that renders the mount template:
 
@@ -48,24 +59,17 @@ defmodule MyAppWeb.DatastarHTML do
 
   def mount(assigns) do
     ~H"""
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>{@page_title}</title>
-        <script type="module" src="https://cdn.jsdelivr.net/npm/@starfederation/datastar"></script>
-      </head>
-      <body>
-        <div id={"ds-live-#{@session_id}"} data-on-load={"@get('#{@stream_path}?datastar=' + encodeURIComponent(JSON.stringify({session_id: '#{@session_id}'})))"}>
-          {raw(@inner_html)}
-        </div>
-      </body>
-    </html>
+      <div 
+        id={"ds-live-#{@session_id}"} 
+        data-on-load={"@get('#{@stream_path}?datastar=' + encodeURIComponent(JSON.stringify({session_id: '#{@session_id}'})))"}>
+          {@inner_html}
+      </div>
     """
   end
 end
 ```
 
-### 4. Import the router macro
+### 5. Import the router macro
 
 In your router:
 
