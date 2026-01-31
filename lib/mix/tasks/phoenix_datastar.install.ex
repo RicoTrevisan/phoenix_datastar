@@ -14,9 +14,7 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
   5. Add `import PhoenixDatastar.Router` to your router
   6. Add `"sse"` to the browser pipeline's `:accepts` plug
   7. Add `def live_sse` to your web module
-
-  You will also receive instructions for manual steps:
-  - Adding the Datastar JavaScript to your layout
+  8. Add the Datastar JavaScript to your root layout
   """
 
   use Igniter.Mix.Task
@@ -45,6 +43,7 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     |> add_router_import()
     |> add_sse_to_browser_pipeline()
     |> add_live_sse_to_web_module(web_module)
+    |> add_datastar_script_to_layout(web_module_path)
     |> add_manual_step_notices(web_module_path)
   end
 
@@ -171,6 +170,36 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     end)
   end
 
+  defp add_datastar_script_to_layout(igniter, web_module_path) do
+    layout_path = "lib/#{web_module_path}/components/layouts/root.html.heex"
+
+    script_tag = """
+        <script
+          type="module"
+          src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.7/bundles/datastar.js"
+        ></script>
+    """
+
+    Igniter.update_file(igniter, layout_path, fn source ->
+      content = Rewrite.Source.get(source, :content)
+
+      if String.contains?(content, "datastar.js") do
+        # Already has the script
+        source
+      else
+        case String.split(content, "</head>", parts: 2) do
+          [before_head, after_head] ->
+            new_content = before_head <> script_tag <> "  </head>" <> after_head
+            Rewrite.Source.update(source, :content, new_content)
+
+          _ ->
+            # Couldn't find </head>, return unchanged
+            source
+        end
+      end
+    end)
+  end
+
   defp add_router_import(igniter) do
     {igniter, router} = Igniter.Libs.Phoenix.select_router(igniter)
 
@@ -210,14 +239,6 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
 
   defp add_manual_step_notices(igniter, web_module_path) do
     igniter
-    |> Igniter.add_notice("""
-    Add the Datastar JavaScript to your layout's <head> in lib/#{web_module_path}/components/layouts/root.html.heex:
-
-        <script
-          type="module"
-          src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.7/bundles/datastar.js"
-        ></script>
-    """)
     |> Igniter.add_notice("""
     Add routes in your router (lib/#{web_module_path}/router.ex):
 
