@@ -6,6 +6,24 @@ Build interactive Phoenix applications with [Datastar](https://data-star.dev/)'s
 
 ## Installation
 
+### With Igniter (recommended)
+
+If you have [Igniter](https://hex.pm/packages/igniter) installed, run:
+
+```bash
+mix igniter.install phoenix_datastar
+```
+
+This will automatically:
+- Add the Registry to your supervision tree
+- Configure the HTML module
+- Enable stripping of debug annotations in dev
+- Create the DatastarHTML module
+
+You'll then just need to manually add the Datastar JavaScript to your layout and import the router macro (the installer will show you instructions).
+
+### Manual Installation
+
 Add `phoenix_datastar` to your list of dependencies in `mix.exs`:
 
 ```elixir
@@ -15,6 +33,8 @@ def deps do
   ]
 end
 ```
+
+Then follow the setup steps below.
 
 ## Setup
 
@@ -42,26 +62,13 @@ children = [
 ```
 
 ### 3. Configure the HTML module
+Create a module that renders the mount template. This wraps the body with a signal and a call to get the sse stream started.
 
 In your `config/config.exs`:
 
 ```elixir
 config :phoenix_datastar, :html_module, MyAppWeb.DatastarHTML
 ```
-
-### 4. Strip debug annotations in dev
-
-In your `config/dev.exs`, enable stripping of LiveView debug annotations from SSE patches:
-
-```elixir
-config :phoenix_datastar, :strip_debug_annotations, true
-```
-
-This removes `<!-- @caller ... -->` comments and `data-phx-loc` attributes from SSE patches, which would otherwise interfere with Datastar's DOM patching. The initial page load keeps annotations intact for debugging.
-
-### 5. Create the HTML module (optional)
-
-Create a module that renders the mount template. This is only needed if you want to customize the wrapper:
 
 ```elixir
 defmodule MyAppWeb.DatastarHTML do
@@ -81,7 +88,7 @@ defmodule MyAppWeb.DatastarHTML do
 end
 ```
 
-### 6. Import the router macro (required)
+### 4. Import the router macro 
 
 In your router:
 
@@ -94,6 +101,17 @@ scope "/", MyAppWeb do
   datastar "/counter", CounterStar
 end
 ```
+
+### 5. Strip debug annotations in dev (optional)
+
+In your `config/dev.exs`, enable stripping of LiveView debug annotations from SSE patches:
+
+```elixir
+config :phoenix_datastar, :strip_debug_annotations, true
+```
+
+This removes `<!-- @caller ... -->` comments and `data-phx-loc` attributes from SSE patches. The initial page load keeps annotations intact for debugging.
+
 
 ## Usage
 

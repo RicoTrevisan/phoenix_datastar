@@ -46,14 +46,15 @@ defmodule PhoenixDatastar.MixProject do
       links: %{
         "GitHub" => @source_url
       },
-      files: ~w(lib .formatter.exs mix.exs README.md LICENSE)
+      files: ~w(lib .formatter.exs mix.exs README.md LICENSE),
+      keywords: ["phoenix", "datastar", "sse", "hypermedia", "htmx"]
     ]
   end
 
   defp docs do
     [
       main: "readme",
-      extras: ["README.md"],
+      extras: ["README.md", "LICENSE"],
       source_ref: "v#{@version}",
       source_url: @source_url
     ]

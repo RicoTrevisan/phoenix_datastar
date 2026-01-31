@@ -11,10 +11,10 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
   2. Configure the HTML module for PhoenixDatastar
   3. Enable stripping of debug annotations in dev (for SSE patches)
   4. Create the DatastarHTML module
+  5. Add `import PhoenixDatastar.Router` to your router
 
   You will also receive instructions for manual steps:
   - Adding the Datastar JavaScript to your layout
-  - Importing the router macro
   """
 
   use Igniter.Mix.Task
@@ -40,6 +40,8 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     |> configure_html_module(html_module)
     |> configure_strip_debug_annotations()
     |> create_datastar_html_module(html_module)
+    |> add_router_import()
+    |> add_sse_to_browser_pipeline()
     |> add_manual_step_notices(web_module_path)
   end
 
@@ -88,6 +90,82 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     """)
   end
 
+  defp add_sse_to_browser_pipeline(igniter) do
+    {igniter, router} = Igniter.Libs.Phoenix.select_router(igniter)
+
+    if router do
+      Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
+        # Find the browser pipeline
+        with {:ok, zipper} <-
+               Igniter.Code.Function.move_to_function_call_in_current_scope(
+                 zipper,
+                 :pipeline,
+                 2,
+                 &Igniter.Code.Function.argument_equals?(&1, 0, :browser)
+               ),
+             {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
+             # Find plug :accepts inside the pipeline
+             {:ok, zipper} <-
+               Igniter.Code.Function.move_to_function_call_in_current_scope(
+                 zipper,
+                 :plug,
+                 2,
+                 &Igniter.Code.Function.argument_equals?(&1, 0, :accepts)
+               ),
+             {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1),
+             {:ok, zipper} <- Igniter.Code.List.append_new_to_list(zipper, "sse") do
+          {:ok, zipper}
+        else
+          _ ->
+            {:warning,
+             "Could not add \"sse\" to plug :accepts in browser pipeline. Please add it manually."}
+        end
+      end)
+    else
+      Igniter.add_warning(
+        igniter,
+        "Could not find router. Please add \"sse\" to plug :accepts in browser pipeline manually."
+      )
+    end
+  end
+
+  defp add_router_import(igniter) do
+    {igniter, router} = Igniter.Libs.Phoenix.select_router(igniter)
+
+    if router do
+      Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
+        with {:ok, zipper} <- Igniter.Libs.Phoenix.move_to_router_use(igniter, zipper) do
+          import_code = "import PhoenixDatastar.Router"
+
+          # Check if import already exists in the module
+          case Igniter.Code.Function.move_to_function_call_in_current_scope(
+                 zipper,
+                 :import,
+                 1,
+                 &Igniter.Code.Function.argument_equals?(&1, 0, PhoenixDatastar.Router)
+               ) do
+            {:ok, _} ->
+              # Import already exists
+              {:ok, zipper}
+
+            :error ->
+              # Add import after the use statement
+              {:ok, Igniter.Code.Common.add_code(zipper, import_code, placement: :after)}
+          end
+        else
+          _ ->
+            {:warning,
+             "Could not add `import PhoenixDatastar.Router` to your router. Please add it manually."}
+        end
+      end)
+    else
+      Igniter.add_warning(
+        igniter,
+        "Could not find a router. Please add `import PhoenixDatastar.Router` manually."
+      )
+    end
+  end
+
   defp add_manual_step_notices(igniter, web_module_path) do
     igniter
     |> Igniter.add_notice("""
@@ -99,11 +177,7 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
         ></script>
     """)
     |> Igniter.add_notice("""
-    Import the router macro in your router (lib/#{web_module_path}/router.ex):
-
-        import PhoenixDatastar.Router
-
-    Then add routes like:
+    Add routes in your router (lib/#{web_module_path}/router.ex):
 
         datastar "/counter", CounterStar
     """)
