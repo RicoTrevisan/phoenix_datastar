@@ -6,7 +6,7 @@ Build interactive Phoenix applications with [Datastar](https://data-star.dev/)'s
 
 ## Installation
 
-### With Igniter (recommended)
+### With Igniter
 
 If you have [Igniter](https://hex.pm/packages/igniter) installed, run:
 
@@ -29,16 +29,14 @@ Add `phoenix_datastar` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:phoenix_datastar, "~> 0.1.0"}
+    {:phoenix_datastar, "~> 0.1.1"}
   ]
 end
 ```
 
 Then follow the setup steps below.
 
-## Setup
-
-### 1. Add Datastar to your layout
+#### 1. Add Datastar to your layout
 
 Include the Datastar JavaScript library in your layout's `<head>`:
 
@@ -49,7 +47,7 @@ Include the Datastar JavaScript library in your layout's `<head>`:
 ></script>
 ```
 
-### 2. Add to your supervision tree
+#### 2. Add to your supervision tree
 
 In your `application.ex`:
 
@@ -61,7 +59,7 @@ children = [
 ]
 ```
 
-### 3. Configure the HTML module
+#### 3. Configure the HTML module
 Create a module that renders the mount template. This wraps the body with a signal and a call to get the sse stream started.
 
 In your `config/config.exs`:
@@ -79,7 +77,7 @@ defmodule MyAppWeb.DatastarHTML do
       <div 
         id={"ds-live-#{@session_id}"} 
         data-signals={"{session_id: '#{@session_id}'}"}
-        data-init__once={"@get('#{@stream_path}', {openWhenHidden: true})"}
+        data-init__once={@stream_path && "@get('#{@stream_path}', {openWhenHidden: true})"}
       >
         {@inner_html}
       </div>
@@ -88,7 +86,7 @@ defmodule MyAppWeb.DatastarHTML do
 end
 ```
 
-### 4. Import the router macro 
+#### 4. Import the router macro 
 
 In your router:
 
@@ -102,7 +100,23 @@ scope "/", MyAppWeb do
 end
 ```
 
-### 5. Strip debug annotations in dev (optional)
+#### 5. Create `:live_sse` in your `_web.ex`
+
+```ex
+defmodule MyAppWeb do
+#... existing calls
+
+  def live_sse do
+    quote do
+      use PhoenixDatastar, :live
+
+      unquote(html_helpers())
+    end
+  end
+end
+```
+
+#### 6. Strip debug annotations in dev (optional)
 
 In your `config/dev.exs`, enable stripping of LiveView debug annotations from SSE patches:
 
@@ -119,7 +133,9 @@ This removes `<!-- @caller ... -->` comments and `data-phx-loc` attributes from 
 
 ```elixir
 defmodule MyAppWeb.CounterStar do
-  use PhoenixDatastar, :live
+  use MyAppWeb, :live_sse
+  # if not present in `my_app_web.ex` file use
+  # `use PhoenixDatastar, :live`
 
   @impl PhoenixDatastar
   def mount(_params, _session, socket) do

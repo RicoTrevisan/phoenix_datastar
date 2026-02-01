@@ -38,14 +38,39 @@ defmodule PhoenixDatastar.PageController do
     html_module = get_html_module(conn)
 
     session_id = generate_session_id()
-    stream_path = "#{path}/stream"
     session = Helpers.get_session_map(conn)
 
-    # Start GenServer for this session
-    {:ok, _pid} = Server.ensure_started(view, session_id, conn.params, session, path)
+    {inner_html, stream_path} =
+      if PhoenixDatastar.live?(view) do
+        stream_path = "#{path}/stream"
+        # Start GenServer for this session
+        {:ok, _pid} = Server.ensure_started(view, session_id, conn.params, session, path)
 
-    # Get rendered HTML from GenServer
-    {:ok, inner_html} = Server.get_snapshot(session_id)
+        # Get rendered HTML from GenServer
+        {:ok, inner_html} = Server.get_snapshot(session_id)
+
+        {inner_html, stream_path}
+      else
+        # Stateless: Render directly without GenServer
+        socket = %PhoenixDatastar.Socket{
+          id: session_id,
+          view: view,
+          assigns: %{
+            session_id: session_id,
+            base_path: path,
+            stream_path: nil
+          }
+        }
+
+        socket =
+          case view.mount(conn.params, session, socket) do
+            {:ok, socket} -> socket
+            {:ok, socket, _opts} -> socket
+          end
+
+        inner_html = Helpers.render_html(view, socket)
+        {inner_html, nil}
+      end
 
     conn
     |> put_view(html_module)

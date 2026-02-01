@@ -83,7 +83,7 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
       <div
         id={"ds-live-\#{@session_id}"}
         data-signals={"{session_id: '\#{@session_id}'}"}
-        data-init__once={"@get('\#{@stream_path}', {openWhenHidden: true})"}
+        data-init__once={@stream_path && "@get('\#{@stream_path}', {openWhenHidden: true})"}
       >
         {@inner_html}
       </div>
