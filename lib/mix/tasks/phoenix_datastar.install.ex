@@ -140,6 +140,14 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
         unquote(html_helpers())
       end
     end
+
+    def datastar do
+      quote do
+        use PhoenixDatastar
+
+        unquote(html_helpers())
+      end
+    end
     """
 
     Igniter.Project.Module.find_and_update_module!(igniter, web_module, fn zipper ->
