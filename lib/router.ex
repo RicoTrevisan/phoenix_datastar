@@ -49,18 +49,41 @@ defmodule PhoenixDatastar.Router do
       Defaults to `Application.get_env(:phoenix_datastar, :html_module)`.
   """
   defmacro datastar(path, view, opts \\ []) do
+    # Expand at macro time in caller's context - this resolves any existing
+    # aliases (like `alias MyApp.CounterSse` at top of router)
+    view = Macro.expand_literals(view, %{__CALLER__ | function: {:datastar, 3}})
+    opts = Macro.expand_literals(opts, %{__CALLER__ | function: {:datastar, 3}})
+
     quote bind_quoted: [path: path, view: view, opts: opts] do
       html_module = Keyword.get(opts, :html_module)
 
+      # Apply scope alias only if view isn't already fully qualified.
+      # Module atoms like CounterSse become "Elixir.CounterSse" (1 dot),
+      # while LiveStarTestWeb.CounterSse becomes "Elixir.LiveStarTestWeb.CounterSse" (2+ dots).
+      # Only apply scoped_alias to single-segment module names.
+      view =
+        case view |> Atom.to_string() |> String.split(".") do
+          ["Elixir", _single_segment] ->
+            Phoenix.Router.scoped_alias(__MODULE__, view)
+
+          _already_qualified ->
+            view
+        end
+
+      # Get full path including scope prefix (e.g., "/" in scope "/sse" becomes "/sse")
+      full_path = Phoenix.Router.scoped_path(__MODULE__, path)
+
       # Initial page load
-      get path, PhoenixDatastar.PageController, :mount,
-        private: %{datastar: %{view: view, path: path, html_module: html_module}}
+      get(path, PhoenixDatastar.PageController, :mount,
+        private: %{datastar: %{view: view, path: full_path, html_module: html_module}},
+        alias: false
+      )
 
       # SSE stream connection
-      get "#{path}/stream", PhoenixDatastar.Plug, view: view
+      get("#{path}/stream", PhoenixDatastar.Plug, [view: view], alias: false)
 
       # Event handling
-      post "#{path}/event/:event", PhoenixDatastar.Plug, view: view
+      post("#{path}/event/:event", PhoenixDatastar.Plug, [view: view], alias: false)
     end
   end
 end
