@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2] - 2026-02-01
+
+### Added
+- Installer: adds `datastar/0` to my_app_web.ex
+
+### Fixed
+- conditional check to check if it should stablish a sse connection or not
+
+
 ## [0.1.1] - 2026-02-01
 
 ### Added
