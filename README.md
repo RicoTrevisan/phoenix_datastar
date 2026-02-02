@@ -155,7 +155,7 @@ defmodule MyAppWeb.CounterStar do
     ~H"""
     <div>
       Count: <span id="count">{@count}</span>
-      <button data-on:click={"@post('#{@base_path}/event/increment')"}>+</button>
+      <button data-on:click={post("increment")}>+</button>
     </div>
     """
   end
@@ -197,6 +197,45 @@ socket = update(socket, :count, &(&1 + 1))
 # Queue a DOM patch (sent via SSE)
 socket = patch_elements(socket, "#selector", &render_fn/1)
 socket = patch_elements(socket, "#selector", ~H|<span>html</span>|)
+```
+
+## Action Macros
+
+PhoenixDatastar provides macros to simplify generating Datastar action expressions in your templates.
+
+### Requirements
+
+- `assigns.base_path` must be set in your template context (automatically set by PhoenixDatastar)
+- `$_csrf_token` signal must be available (typically set via `data-signals:_csrf_token`)
+
+### `post/2`
+
+Generates a Datastar `@post` action for triggering server events.
+
+```elixir
+# Simple event
+<button data-on:click={post("increment")}>+1</button>
+
+# Event with options
+<button data-on:click={post("toggle_code", "name: 'counter'")}>Toggle</button>
+
+# With signals
+<button data-on:click={post("update", "value: $count")}>Update</button>
+```
+
+### `get/2`
+
+Generates a Datastar `@get` action for fetching data from the server.
+
+```elixir
+# Simple fetch
+<button data-on:click={get("refresh")}>Refresh</button>
+
+# Fetch with options
+<button data-on:click={get("load_more", "page: $currentPage")}>Load More</button>
+
+# On load trigger
+<div data-on:load={get("init")}>Loading...</div>
 ```
 
 ## Stateless vs Live Views
