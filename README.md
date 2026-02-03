@@ -86,12 +86,15 @@ defmodule MyAppWeb.DatastarHTML do
 end
 ```
 
-#### 4. Import the router macro 
+#### 4. Import the router macro
 
 In your router:
 
 ```elixir
 import PhoenixDatastar.Router
+
+# Global event endpoint (call once, outside scopes)
+datastar_events()
 
 scope "/", MyAppWeb do
   pipe_through :browser
@@ -172,7 +175,7 @@ PhoenixDatastar uses a hybrid of request/response and streaming:
 
 1. **Initial Page Load (HTTP)**: `GET /counter` calls `mount/3` and `render/1`, returns full HTML
 2. **SSE Connection**: `GET /counter/stream` opens a persistent connection, starts a GenServer
-3. **User Interactions**: `POST /counter/event/:event` triggers `handle_event/3`, updates pushed via SSE
+3. **User Interactions**: `POST /_datastar/event/:event` triggers `handle_event/3`, updates pushed via SSE
 
 ## Callbacks
 
@@ -205,7 +208,7 @@ PhoenixDatastar provides macros to simplify generating Datastar action expressio
 
 ### Requirements
 
-- `assigns.base_path` must be set in your template context (automatically set by PhoenixDatastar)
+- `assigns.session_id` must be set in your template context (automatically set by PhoenixDatastar)
 - `$_csrf_token` signal must be available (typically set via `data-signals:_csrf_token`)
 
 ### `post/2`

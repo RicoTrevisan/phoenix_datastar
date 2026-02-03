@@ -7,14 +7,15 @@ defmodule PhoenixDatastar.Actions do
 
   ## Requirements
 
-  - `assigns.base_path` must be set in your template context
+  - `assigns.session_id` must be set in your template context (automatically set by PhoenixDatastar)
   - `$_csrf_token` signal must be available (typically set via `data-signals:_csrf_token`)
   """
 
   @doc """
   Generates a Datastar `@post` action expression for triggering server events.
 
-  The generated action will POST to `{base_path}/event/{event}` with CSRF token headers.
+  The generated action will POST to `/_datastar/event/{event}` with the session ID
+  and CSRF token.
 
   ## Parameters
 
@@ -36,8 +37,8 @@ defmodule PhoenixDatastar.Actions do
   defmacro post(event, opts \\ nil) do
     quote do
       PhoenixDatastar.Actions.build_post(
-        var!(assigns).base_path,
         unquote(event),
+        var!(assigns).session_id,
         unquote(opts)
       )
     end
@@ -46,7 +47,8 @@ defmodule PhoenixDatastar.Actions do
   @doc """
   Generates a Datastar `@get` action expression for fetching data from the server.
 
-  The generated action will GET from `{base_path}/event/{event}` with CSRF token headers.
+  The generated action will GET from `/_datastar/event/{event}` with the session ID
+  and CSRF token.
 
   ## Parameters
 
@@ -68,30 +70,32 @@ defmodule PhoenixDatastar.Actions do
   defmacro get(event, opts \\ nil) do
     quote do
       PhoenixDatastar.Actions.build_get(
-        var!(assigns).base_path,
         unquote(event),
+        var!(assigns).session_id,
         unquote(opts)
       )
     end
   end
 
   @doc false
-  def build_post(base_path, event, opts) do
-    path = "#{base_path}/event/#{event}" |> String.replace("//", "/")
+  def build_post(event, session_id, opts) do
+    path = "/_datastar/event/#{event}"
     headers = "headers: {'x-csrf-token': $_csrf_token}"
+    session = "session_id: '#{session_id}'"
 
     if opts,
-      do: "@post('#{path}', {#{opts}, #{headers}})",
-      else: "@post('#{path}', {#{headers}})"
+      do: "@post('#{path}', {#{session}, #{opts}, #{headers}})",
+      else: "@post('#{path}', {#{session}, #{headers}})"
   end
 
   @doc false
-  def build_get(base_path, event, opts) do
-    path = "#{base_path}/event/#{event}" |> String.replace("//", "/")
+  def build_get(event, session_id, opts) do
+    path = "/_datastar/event/#{event}"
     headers = "headers: {'x-csrf-token': $_csrf_token}"
+    session = "session_id: '#{session_id}'"
 
     if opts,
-      do: "@get('#{path}', {#{opts}, #{headers}})",
-      else: "@get('#{path}', {#{headers}})"
+      do: "@get('#{path}', {#{session}, #{opts}, #{headers}})",
+      else: "@get('#{path}', {#{session}, #{headers}})"
   end
 end

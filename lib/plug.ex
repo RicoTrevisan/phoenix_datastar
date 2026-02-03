@@ -3,8 +3,8 @@ defmodule PhoenixDatastar.Plug do
   Plug for handling PhoenixDatastar requests.
 
   Handles SSE streams and event dispatch:
-  - GET /stream - Maintains SSE connection for server-pushed updates
-  - POST /event/:event - Dispatches events to GenServer
+  - GET /path/stream - Maintains SSE connection for server-pushed updates
+  - POST /_datastar/event/:event - Dispatches events to GenServer (global endpoint)
   """
 
   @behaviour Plug
@@ -20,17 +20,12 @@ defmodule PhoenixDatastar.Plug do
 
   ## Options
 
-    * `:view` - Required. The view module to handle requests.
+    * `:view` - The view module to handle requests. Required for SSE streams,
+      optional for the global event endpoint.
   """
   @impl Plug
   @spec init(keyword()) :: keyword()
-  def init(opts) do
-    unless Keyword.has_key?(opts, :view) do
-      raise ArgumentError, "PhoenixDatastar.Plug requires a :view option"
-    end
-
-    opts
-  end
+  def init(opts), do: opts
 
   @doc """
   Handles incoming requests for Datastar views.
@@ -43,7 +38,7 @@ defmodule PhoenixDatastar.Plug do
   @spec call(Plug.Conn.t(), keyword()) :: Plug.Conn.t()
   def call(conn, opts) do
     conn = fetch_query_params(conn)
-    view = Keyword.fetch!(opts, :view)
+    view = Keyword.get(opts, :view)
 
     # Get base path for event URLs (strip /stream or /event/... suffix)
     base_path = get_base_path(conn.request_path)
@@ -76,7 +71,13 @@ defmodule PhoenixDatastar.Plug do
     |> String.replace(~r"/event/[^/]+$", "")
   end
 
-  # GET /stream - SSE connection
+  # GET /stream - SSE connection (requires view)
+  defp dispatch(conn, "GET", nil, _session_id) do
+    conn
+    |> send_resp(500, "SSE stream requires a view module")
+    |> halt()
+  end
+
   defp dispatch(conn, "GET", view, session_id) do
     Logger.debug("SSE connection: #{session_id}")
 

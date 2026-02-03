@@ -6,6 +6,9 @@ defmodule PhoenixDatastar.Router do
 
       import PhoenixDatastar.Router
 
+      # Global event handler (call once, outside scopes)
+      datastar_events()
+
       scope "/", MyAppWeb do
         pipe_through :browser
 
@@ -19,14 +22,12 @@ defmodule PhoenixDatastar.Router do
         datastar "/custom", CustomStar, html_module: MyAppWeb.CustomHTML
       end
 
-  For stateless views, this generates two routes:
-    - GET /counter - renders the initial page
-    - POST /counter/event/:event - handles events, returns signals
+  `datastar_events/1` generates:
+    - POST /_datastar/event/:event - Global event handler for all views
 
-  For live views, this generates three routes:
-    - GET /counter - renders the initial page and starts GenServer
-    - GET /counter/stream - SSE stream endpoint
-    - POST /counter/event/:event - dispatches events to GenServer
+  `datastar/3` generates per-view routes:
+    - GET /counter - renders the initial page
+    - GET /counter/stream - SSE stream endpoint (live views only)
 
   ## Configuration
 
@@ -36,6 +37,36 @@ defmodule PhoenixDatastar.Router do
 
   Or pass `html_module` option per-route to override.
   """
+
+  @doc """
+  Defines the global event route for PhoenixDatastar.
+
+  This should be called once in your router, typically at the top level outside of scopes,
+  or in a scope with appropriate pipelines (e.g., CSRF protection).
+
+  ## Options
+
+    * `path` - The base path for the event endpoint. Defaults to `"/_datastar"`.
+
+  ## Example
+
+      import PhoenixDatastar.Router
+
+      datastar_events()
+
+      scope "/", MyAppWeb do
+        pipe_through :browser
+        datastar "/counter", CounterStar
+      end
+
+  This generates:
+    - POST /_datastar/event/:event - Global event handler
+  """
+  defmacro datastar_events(path \\ "/_datastar") do
+    quote do
+      post("#{unquote(path)}/event/:event", PhoenixDatastar.Plug, [], alias: false)
+    end
+  end
 
   @doc """
   Defines routes for a PhoenixDatastar view.
@@ -81,9 +112,6 @@ defmodule PhoenixDatastar.Router do
 
       # SSE stream connection
       get("#{path}/stream", PhoenixDatastar.Plug, [view: view], alias: false)
-
-      # Event handling
-      post("#{path}/event/:event", PhoenixDatastar.Plug, [view: view], alias: false)
     end
   end
 end
