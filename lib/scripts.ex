@@ -5,6 +5,9 @@ defmodule PhoenixDatastar.Scripts do
   This module provides utilities for sending JavaScript to execute
   in the browser through Server-Sent Events.
 
+  Internally, this uses `datastar-patch-elements` to append a `<script>` tag
+  to the body, which is the approach used by the official Datastar SDKs.
+
   ## Executing Scripts
 
   Send JavaScript to run on the client:
@@ -32,16 +35,11 @@ defmodule PhoenixDatastar.Scripts do
 
   """
 
-  alias PhoenixDatastar.SSE
-
-  # Event type for script execution
-  @event_type "datastar-execute-script"
-
-  # Default values
-  @default_auto_remove true
+  alias PhoenixDatastar.Elements
+  alias PhoenixDatastar.Helpers.JS
 
   @doc """
-  Executes JavaScript on the client.
+  Executes JavaScript on the client by appending a script tag to the body.
 
   ## Options
 
@@ -62,25 +60,42 @@ defmodule PhoenixDatastar.Scripts do
       sse |> execute("import {...} from 'module'", attributes: %{type: "module"})
 
   """
-  @spec execute(SSE.t(), String.t(), keyword()) :: SSE.t()
+  @spec execute(PhoenixDatastar.SSE.t(), String.t(), keyword()) :: PhoenixDatastar.SSE.t()
   def execute(sse, script, opts \\ []) when is_binary(script) do
-    auto_remove = Keyword.get(opts, :auto_remove, @default_auto_remove)
+    auto_remove = Keyword.get(opts, :auto_remove, true)
     attributes = Keyword.get(opts, :attributes, %{})
 
-    data_lines =
-      []
-      |> maybe_add_auto_remove(auto_remove)
-      |> maybe_add_attributes(attributes)
-      |> add_script_lines(script)
+    # Build script tag attributes
+    attr_list =
+      attributes
+      |> Map.to_list()
+      |> Enum.map(fn {k, v} -> ~s(#{k}="#{escape_html_attr(v)}") end)
 
-    event_opts =
+    attrs_str = if attr_list == [], do: "", else: " " <> Enum.join(attr_list, " ")
+
+    # For auto-remove, wrap script to remove itself after execution
+    # (onload doesn't work for inline scripts, only external ones)
+    final_script =
+      if auto_remove do
+        "(function(){#{script}})();document.currentScript.remove();"
+      else
+        script
+      end
+
+    # Build the script tag
+    script_html = "<script#{attrs_str}>#{escape_script_content(final_script)}</script>"
+
+    # Use patch-elements to append the script to body
+    element_opts =
       [
+        selector: "body",
+        mode: :append,
         event_id: opts[:event_id],
         retry: opts[:retry]
       ]
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
-    SSE.send_event!(sse, @event_type, data_lines, event_opts)
+    Elements.patch(sse, script_html, element_opts)
   end
 
   @doc """
@@ -96,9 +111,10 @@ defmodule PhoenixDatastar.Scripts do
       sse |> redirect("https://example.com")
 
   """
-  @spec redirect(SSE.t(), String.t(), keyword()) :: SSE.t()
+  @spec redirect(PhoenixDatastar.SSE.t(), String.t(), keyword()) :: PhoenixDatastar.SSE.t()
   def redirect(sse, url, opts \\ []) when is_binary(url) do
-    execute(sse, "window.location = '#{escape_js_string(url)}'", opts)
+    # Use setTimeout to ensure proper browser history handling (especially in Firefox)
+    execute(sse, "setTimeout(function(){window.location='#{JS.escape_string(url)}'},0)", opts)
   end
 
   @doc """
@@ -116,7 +132,7 @@ defmodule PhoenixDatastar.Scripts do
       sse |> console_log(%{user: "alice", action: "login"}, level: :info)
 
   """
-  @spec console_log(SSE.t(), term(), keyword()) :: SSE.t()
+  @spec console_log(PhoenixDatastar.SSE.t(), term(), keyword()) :: PhoenixDatastar.SSE.t()
   def console_log(sse, message, opts \\ []) do
     {level, opts} = Keyword.pop(opts, :level, :log)
 
@@ -132,7 +148,7 @@ defmodule PhoenixDatastar.Scripts do
 
     js_message =
       case message do
-        msg when is_binary(msg) -> "'#{escape_js_string(msg)}'"
+        msg when is_binary(msg) -> "'#{JS.escape_string(msg)}'"
         msg -> Jason.encode!(msg)
       end
 
@@ -141,36 +157,18 @@ defmodule PhoenixDatastar.Scripts do
 
   # Private helpers
 
-  defp maybe_add_auto_remove(lines, true), do: lines
-
-  defp maybe_add_auto_remove(lines, false) do
-    lines ++ ["autoRemove false"]
-  end
-
-  defp maybe_add_attributes(lines, attributes) when map_size(attributes) == 0, do: lines
-
-  defp maybe_add_attributes(lines, attributes) do
-    attr_lines =
-      attributes
-      |> Enum.map(fn {key, value} -> "attributes #{key} #{value}" end)
-
-    lines ++ attr_lines
-  end
-
-  defp add_script_lines(lines, script) do
-    script_lines =
-      script
-      |> String.split("\n")
-      |> Enum.map(&("script " <> &1))
-
-    lines ++ script_lines
-  end
-
-  defp escape_js_string(str) do
+  defp escape_html_attr(str) when is_binary(str) do
     str
-    |> String.replace("\\", "\\\\")
-    |> String.replace("'", "\\'")
-    |> String.replace("\n", "\\n")
-    |> String.replace("\r", "\\r")
+    |> String.replace("&", "&amp;")
+    |> String.replace("\"", "&quot;")
+    |> String.replace("<", "&lt;")
+    |> String.replace(">", "&gt;")
+  end
+
+  defp escape_html_attr(other), do: to_string(other)
+
+  defp escape_script_content(script) do
+    # Escape </script> to prevent premature tag closing
+    String.replace(script, "</script>", "<\\/script>")
   end
 end

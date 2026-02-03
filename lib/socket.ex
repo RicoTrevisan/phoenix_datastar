@@ -1,18 +1,21 @@
 defmodule PhoenixDatastar.Socket do
   @moduledoc """
   Socket struct for PhoenixDatastar, similar to Phoenix.LiveView.Socket.
-  Holds the view module, session id, assigns, private data, and queued patches.
+  Holds the view module, session id, assigns, private data, queued patches, and queued scripts.
   """
 
+  alias PhoenixDatastar.Helpers.JS
+
   @enforce_keys [:view]
-  defstruct [:id, :view, assigns: %{}, private: %{}, patches: []]
+  defstruct [:id, :view, assigns: %{}, private: %{}, patches: [], scripts: []]
 
   @type t :: %__MODULE__{
           id: String.t() | nil,
           view: module(),
           assigns: map(),
           private: map(),
-          patches: list({String.t(), String.t()})
+          patches: list({String.t(), String.t()}),
+          scripts: list({String.t(), keyword()})
         }
 
   @doc """
@@ -104,6 +107,99 @@ defmodule PhoenixDatastar.Socket do
       |> maybe_strip_debug_annotations()
 
     %{socket | patches: socket.patches ++ [{selector, html_binary}]}
+  end
+
+  @doc """
+  Queues a JavaScript script to be executed on the client via SSE.
+
+  ## Options
+
+  - `:auto_remove` - Remove script tag after execution (default: true)
+  - `:attributes` - Map of additional script tag attributes
+
+  ## Examples
+
+      socket
+      |> execute_script("alert('Hello!')")
+
+      socket
+      |> execute_script("console.log('debug')", auto_remove: false)
+
+      # ES module script
+      socket
+      |> execute_script("import {...} from 'module'", attributes: %{type: "module"})
+
+  """
+  @spec execute_script(t(), String.t(), keyword()) :: t()
+  def execute_script(socket, script, opts \\ []) when is_binary(script) do
+    %{socket | scripts: socket.scripts ++ [{script, opts}]}
+  end
+
+  @doc """
+  Queues a redirect to be executed on the client via SSE.
+
+  Uses setTimeout for proper browser history handling, especially in Firefox.
+
+  ## Options
+
+  Same as `execute_script/3`.
+
+  ## Examples
+
+      socket
+      |> redirect("/dashboard")
+
+      socket
+      |> redirect("https://example.com")
+
+  """
+  @spec redirect(t(), String.t(), keyword()) :: t()
+  def redirect(socket, url, opts \\ []) when is_binary(url) do
+    # Use setTimeout for proper browser history handling (especially Firefox)
+    execute_script(socket, "setTimeout(function(){window.location='#{JS.escape_string(url)}'},0)", opts)
+  end
+
+  @doc """
+  Queues a console.log to be executed on the client via SSE.
+
+  ## Options
+
+  - `:level` - Console method: `:log`, `:warn`, `:error`, `:info`, `:debug` (default: :log)
+  - Plus all options from `execute_script/3`
+
+  ## Examples
+
+      socket
+      |> console_log("Debug message")
+
+      socket
+      |> console_log("Warning!", level: :warn)
+
+      socket
+      |> console_log(%{user: "alice", action: "login"}, level: :info)
+
+  """
+  @spec console_log(t(), term(), keyword()) :: t()
+  def console_log(socket, message, opts \\ []) do
+    {level, opts} = Keyword.pop(opts, :level, :log)
+
+    level_str =
+      case level do
+        :log -> "log"
+        :warn -> "warn"
+        :error -> "error"
+        :info -> "info"
+        :debug -> "debug"
+        _ -> "log"
+      end
+
+    js_message =
+      case message do
+        msg when is_binary(msg) -> "'#{JS.escape_string(msg)}'"
+        msg -> Jason.encode!(msg)
+      end
+
+    execute_script(socket, "console.#{level_str}(#{js_message})", opts)
   end
 
   @doc """

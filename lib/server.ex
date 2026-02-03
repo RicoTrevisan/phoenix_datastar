@@ -17,6 +17,7 @@ defmodule PhoenixDatastar.Server do
   alias PhoenixDatastar.Helpers
   alias PhoenixDatastar.Elements
   alias PhoenixDatastar.Signals
+  alias PhoenixDatastar.Scripts
 
   @doc """
   Starts a GenServer for a Datastar view session.
@@ -112,6 +113,16 @@ defmodule PhoenixDatastar.Server do
         sse = Signals.patch(sse, signals)
         enter_loop(sse, session_id)
 
+      {:datastar_scripts, scripts} ->
+        Logger.debug("SSE #{length(scripts)} script(s)")
+
+        sse =
+          Enum.reduce(scripts, sse, fn {script, opts}, sse ->
+            Scripts.execute(sse, script, opts)
+          end)
+
+        enter_loop(sse, session_id)
+
       :datastar_stop ->
         Logger.info("SSE connection stopped for session: #{session_id}")
         sse
@@ -178,8 +189,8 @@ defmodule PhoenixDatastar.Server do
     case view.handle_event(evt, payload, socket) do
       {:noreply, new_socket} ->
         send_update(subscriber, new_socket)
-        # Clear patches after sending
-        {:noreply, %{state | socket: %{new_socket | patches: []}}}
+        # Clear patches and scripts after sending
+        {:noreply, %{state | socket: %{new_socket | patches: [], scripts: []}}}
 
       {:stop, new_socket} ->
         if subscriber do
@@ -221,8 +232,8 @@ defmodule PhoenixDatastar.Server do
             send_update(subscriber, new_socket)
           end
 
-          # Clear patches after sending
-          {:noreply, %{state | socket: %{new_socket | patches: []}}}
+          # Clear patches and scripts after sending
+          {:noreply, %{state | socket: %{new_socket | patches: [], scripts: []}}}
 
         _ ->
           {:noreply, state}
@@ -252,6 +263,11 @@ defmodule PhoenixDatastar.Server do
     # Send patches if any exist
     if socket.patches != [] do
       send(subscriber, {:datastar_patches, socket.patches})
+    end
+
+    # Send scripts if any exist
+    if socket.scripts != [] do
+      send(subscriber, {:datastar_scripts, socket.scripts})
     end
   end
 
