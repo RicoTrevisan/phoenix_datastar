@@ -136,6 +136,7 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     def live_sse do
       quote do
         use PhoenixDatastar, :live
+        import PhoenixDatastar.Actions
 
         unquote(html_helpers())
       end
@@ -144,6 +145,7 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     def datastar do
       quote do
         use PhoenixDatastar
+        import PhoenixDatastar.Actions
 
         unquote(html_helpers())
       end
