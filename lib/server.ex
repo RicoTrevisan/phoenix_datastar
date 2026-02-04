@@ -157,7 +157,12 @@ defmodule PhoenixDatastar.Server do
     socket = %Socket{
       id: session_id,
       view: view,
-      assigns: %{session_id: session_id, base_path: base_path, stream_path: "#{base_path}/stream"}
+      assigns: %{
+        session_id: session_id,
+        base_path: base_path,
+        stream_path: Path.join(base_path, "stream"),
+        event_path: Path.join(base_path, "_event")
+      }
     }
 
     # Call the view's mount callback to initialize state

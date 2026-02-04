@@ -125,6 +125,34 @@ defmodule PhoenixDatastar.SSE do
     %{sse | closed: true}
   end
 
+  @doc """
+  Formats a single SSE event as a string (for non-streaming responses).
+
+  This is useful for stateless views that return SSE-formatted responses
+  directly in a single HTTP response body rather than via chunked streaming.
+
+  ## Parameters
+
+  - `event_type` - The event type (e.g., "datastar-patch-elements")
+  - `data_lines` - A list of data lines
+
+  ## Example
+
+      format_event("datastar-patch-elements", [
+        "selector #count",
+        "mode outer",
+        "elements <span>42</span>"
+      ])
+      # => "event: datastar-patch-elements\\ndata: selector #count\\ndata: mode outer\\ndata: elements <span>42</span>\\n\\n"
+
+  """
+  @spec format_event(String.t(), [String.t()]) :: String.t()
+  def format_event(event_type, data_lines) do
+    event_line = "event: #{event_type}\n"
+    data_content = Enum.map_join(data_lines, "\n", &"data: #{&1}")
+    "#{event_line}#{data_content}\n\n"
+  end
+
   # Private helpers
 
   defp maybe_add_event(lines, nil), do: lines

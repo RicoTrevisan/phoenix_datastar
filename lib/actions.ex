@@ -8,94 +8,52 @@ defmodule PhoenixDatastar.Actions do
   ## Requirements
 
   - `assigns.session_id` must be set in your template context (automatically set by PhoenixDatastar)
+  - `assigns.event_path` must be set (automatically set by PhoenixDatastar)
   - `$_csrf_token` signal must be available (typically set via `data-signals:_csrf_token`)
   """
 
   @doc """
   Generates a Datastar `@post` action expression for triggering server events.
 
-  The generated action will POST to `/_datastar/event/{event}` with the session ID
+  The generated action will POST to `{event_path}/{event}` with the session ID
   and CSRF token.
 
   ## Parameters
 
-    * `event` - The event name to trigger on the server
+    * `event_name` - The event name to trigger on the server
     * `opts` - Optional additional options to pass in the request body (as a string)
 
   ## Examples
 
       # Simple event
-      <button data-on:click={post("increment")}>+1</button>
+      <button data-on:click={event("increment")}>+1</button>
 
       # Event with options
-      <button data-on:click={post("toggle_code", "name: 'counter'")}>Toggle</button>
+      <button data-on:click={event("toggle_code", "name: 'counter'")}>Toggle</button>
 
       # With signals
-      <button data-on:click={post("update", "value: $count")}>Update</button>
+      <button data-on:click={event("update", "value: $count")}>Update</button>
 
   """
-  defmacro post(event, opts \\ nil) do
+  defmacro event(event_name, opts \\ nil) do
     quote do
-      PhoenixDatastar.Actions.build_post(
-        unquote(event),
+      PhoenixDatastar.Actions.build_event(
+        unquote(event_name),
         var!(assigns).session_id,
-        unquote(opts)
-      )
-    end
-  end
-
-  @doc """
-  Generates a Datastar `@get` action expression for fetching data from the server.
-
-  The generated action will GET from `/_datastar/event/{event}` with the session ID
-  and CSRF token.
-
-  ## Parameters
-
-    * `event` - The event name to trigger on the server
-    * `opts` - Optional additional options to pass in the request (as a string)
-
-  ## Examples
-
-      # Simple fetch
-      <button data-on:click={get("refresh")}>Refresh</button>
-
-      # Fetch with options
-      <button data-on:click={get("load_more", "page: $currentPage")}>Load More</button>
-
-      # On load trigger
-      <div data-on:load={get("init")}>Loading...</div>
-
-  """
-  defmacro get(event, opts \\ nil) do
-    quote do
-      PhoenixDatastar.Actions.build_get(
-        unquote(event),
-        var!(assigns).session_id,
+        var!(assigns).event_path,
         unquote(opts)
       )
     end
   end
 
   @doc false
-  def build_post(event, session_id, opts) do
-    path = "/_datastar/event/#{event}"
+  def build_event(event_name, session_id, event_path, opts) do
+    path = "#{event_path}/#{event_name}"
     headers = "headers: {'x-csrf-token': $_csrf_token}"
     session = "session_id: '#{session_id}'"
 
     if opts,
       do: "@post('#{path}', {#{session}, #{opts}, #{headers}})",
       else: "@post('#{path}', {#{session}, #{headers}})"
-  end
-
-  @doc false
-  def build_get(event, session_id, opts) do
-    path = "/_datastar/event/#{event}"
-    headers = "headers: {'x-csrf-token': $_csrf_token}"
-    session = "session_id: '#{session_id}'"
-
-    if opts,
-      do: "@get('#{path}', {#{session}, #{opts}, #{headers}})",
-      else: "@get('#{path}', {#{session}, #{headers}})"
   end
 end

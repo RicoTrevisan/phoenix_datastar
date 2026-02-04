@@ -40,9 +40,13 @@ defmodule PhoenixDatastar.PageController do
     session_id = generate_session_id()
     session = Helpers.get_session_map(conn)
 
+    # Event path is the same format for all views
+    # Use Path.join to handle root path "/" correctly (avoids "//")
+    event_path = Path.join(path, "_event")
+
     {inner_html, stream_path} =
       if PhoenixDatastar.live?(view) do
-        stream_path = "#{path}/stream"
+        stream_path = Path.join(path, "stream")
         # Start GenServer for this session
         {:ok, _pid} = Server.ensure_started(view, session_id, conn.params, session, path)
 
@@ -58,7 +62,8 @@ defmodule PhoenixDatastar.PageController do
           assigns: %{
             session_id: session_id,
             base_path: path,
-            stream_path: nil
+            stream_path: nil,
+            event_path: event_path
           }
         }
 
@@ -77,6 +82,7 @@ defmodule PhoenixDatastar.PageController do
     |> render(:mount,
       session_id: session_id,
       stream_path: stream_path,
+      event_path: event_path,
       base_path: path,
       inner_html: inner_html,
       page_title: "#{Helpers.get_view_name(view)} - Datastar"

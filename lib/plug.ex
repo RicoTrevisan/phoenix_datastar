@@ -3,8 +3,8 @@ defmodule PhoenixDatastar.Plug do
   Plug for handling PhoenixDatastar requests.
 
   Handles SSE streams and event dispatch:
-  - GET /path/stream - Maintains SSE connection for server-pushed updates
-  - POST /_datastar/event/:event - Dispatches events to GenServer (global endpoint)
+  - GET /path/stream - Maintains SSE connection for server-pushed updates (live views)
+  - POST /path/_event/:event - Handles events for all views
   """
 
   @behaviour Plug
@@ -68,7 +68,7 @@ defmodule PhoenixDatastar.Plug do
   defp get_base_path(path) do
     path
     |> String.replace(~r"/stream$", "")
-    |> String.replace(~r"/event/[^/]+$", "")
+    |> String.replace(~r"/_event/[^/]+$", "")
   end
 
   # GET /stream - SSE connection (requires view)
@@ -104,24 +104,121 @@ defmodule PhoenixDatastar.Plug do
     sse.conn
   end
 
-  # POST /event/:event - dispatch to GenServer
-  defp dispatch(conn, "POST", _view, session_id) do
+  # POST /_event/:event - per-page event route (all views)
+  defp dispatch(conn, "POST", view, session_id) do
     event = conn.params["event"]
 
-    if event do
-      Logger.debug("Event: #{event}")
-
-      # Dispatch event to the GenServer
-      Server.dispatch_event(session_id, event, conn.params)
-
-      # Return empty 200 OK - updates come via the SSE stream
-      send_resp(conn, 200, "")
-    else
+    if is_nil(event) do
       send_resp(conn, 400, "Missing 'event' parameter")
+    else
+      if PhoenixDatastar.live?(view) do
+        Logger.debug("Live event: #{event}")
+        # Dispatch event to the GenServer - updates come via SSE stream
+        Server.dispatch_event(session_id, event, conn.params)
+        send_resp(conn, 200, "")
+      else
+        Logger.debug("Stateless event: #{event}")
+        handle_stateless_event(conn, view, session_id, event)
+      end
     end
   end
 
   defp dispatch(conn, _method, _view, _session_id) do
     send_resp(conn, 404, "Not Found")
+  end
+
+  # Handle stateless view events synchronously
+  defp handle_stateless_event(conn, view, session_id, event) do
+    signals = PhoenixDatastar.Signals.read(conn)
+    base_path = conn.assigns[:base_path] || get_base_path(conn.request_path)
+
+    # Convert string keys to atoms for assigns compatibility
+    signal_assigns =
+      signals
+      |> Enum.reject(fn {k, _} -> k == "session_id" end)
+      |> Enum.map(fn {k, v} -> {String.to_atom(k), v} end)
+      |> Map.new()
+
+    # Create socket from signals (no mount call - state comes from client)
+    socket = %PhoenixDatastar.Socket{
+      id: session_id,
+      view: view,
+      assigns:
+        Map.merge(
+          %{
+            session_id: session_id,
+            base_path: base_path,
+            stream_path: nil,
+            event_path: Path.join(base_path, "_event")
+          },
+          signal_assigns
+        ),
+      patches: [],
+      scripts: []
+    }
+
+    try do
+      case view.handle_event(event, conn.params, socket) do
+        {:noreply, new_socket} ->
+          response_body = build_sse_response(new_socket)
+
+          conn
+          |> put_resp_content_type("text/event-stream")
+          |> send_resp(200, response_body)
+
+        {:stop, _socket} ->
+          send_resp(conn, 200, "")
+      end
+    rescue
+      e ->
+        Logger.error("Stateless event error: #{inspect(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}")
+        send_resp(conn, 500, "Internal server error")
+    end
+  end
+
+  # Build SSE response body from socket patches, signals, and scripts
+  defp build_sse_response(socket) do
+    events = []
+
+    # Add signal patches (only user signals, excluding system assigns)
+    user_signals = Helpers.user_signals(socket.assigns)
+
+    events =
+      if map_size(user_signals) > 0 do
+        events ++
+          [SSE.format_event("datastar-patch-signals", ["signals #{Jason.encode!(user_signals)}"])]
+      else
+        events
+      end
+
+    # Add element patches
+    events =
+      Enum.reduce(socket.patches, events, fn {selector, html}, acc ->
+        acc ++
+          [
+            SSE.format_event("datastar-patch-elements", [
+              "selector #{selector}",
+              "mode outer",
+              "elements #{html}"
+            ])
+          ]
+      end)
+
+    # Add scripts
+    events =
+      Enum.reduce(socket.scripts, events, fn {script, _opts}, acc ->
+        script_html = "<script>#{script}</script>"
+
+        acc ++
+          [
+            SSE.format_event("datastar-patch-elements", [
+              "selector body",
+              "mode append",
+              "elements #{script_html}"
+            ])
+          ]
+      end)
+
+    Enum.join(events, "")
   end
 end
