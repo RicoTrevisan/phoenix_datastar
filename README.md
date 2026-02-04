@@ -29,7 +29,7 @@ Add `phoenix_datastar` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:phoenix_datastar, "~> 0.1.1"}
+    {:phoenix_datastar, "~> 0.1.3"}
   ]
 end
 ```
@@ -93,9 +93,6 @@ In your router:
 ```elixir
 import PhoenixDatastar.Router
 
-# Global event endpoint (call once, outside scopes)
-datastar_events()
-
 scope "/", MyAppWeb do
   pipe_through :browser
 
@@ -103,7 +100,7 @@ scope "/", MyAppWeb do
 end
 ```
 
-#### 5. Create `:live_sse` in your `_web.ex`
+#### 5. Create `:live_sse` and `:datastar` in your `_web.ex`
 
 ```ex
 defmodule MyAppWeb do
@@ -112,6 +109,16 @@ defmodule MyAppWeb do
   def live_sse do
     quote do
       use PhoenixDatastar, :live
+      import PhoenixDatastar.Actions
+
+      unquote(html_helpers())
+    end
+  end
+
+  def datastar do
+    quote do
+      use PhoenixDatastar
+      import PhoenixDatastar.Actions
 
       unquote(html_helpers())
     end
@@ -158,7 +165,7 @@ defmodule MyAppWeb.CounterStar do
     ~H"""
     <div>
       Count: <span id="count">{@count}</span>
-      <button data-on:click={post("increment")}>+</button>
+      <button data-on:click={event("increment")}>+</button>
     </div>
     """
   end
@@ -174,8 +181,8 @@ end
 PhoenixDatastar uses a hybrid of request/response and streaming:
 
 1. **Initial Page Load (HTTP)**: `GET /counter` calls `mount/3` and `render/1`, returns full HTML
-2. **SSE Connection**: `GET /counter/stream` opens a persistent connection, starts a GenServer
-3. **User Interactions**: `POST /_datastar/event/:event` triggers `handle_event/3`, updates pushed via SSE
+2. **SSE Connection**: `GET /counter/stream` opens a persistent connection, starts a GenServer (live views only)
+3. **User Interactions**: `POST /counter/_event/:event` triggers `handle_event/3`, updates pushed via SSE (live) or returned directly (stateless)
 
 ## Callbacks
 
@@ -209,51 +216,41 @@ PhoenixDatastar provides macros to simplify generating Datastar action expressio
 ### Requirements
 
 - `assigns.session_id` must be set in your template context (automatically set by PhoenixDatastar)
-- `$_csrf_token` signal must be available (typically set via `data-signals:_csrf_token`)
+- `assigns.event_path` must be set (automatically set by PhoenixDatastar)
+- A `<meta name="csrf-token">` tag must be present in your layout (Phoenix includes this by default)
 
-### `post/2`
+### `event/2`
 
 Generates a Datastar `@post` action for triggering server events.
 
 ```elixir
 # Simple event
-<button data-on:click={post("increment")}>+1</button>
+<button data-on:click={event("increment")}>+1</button>
 
 # Event with options
-<button data-on:click={post("toggle_code", "name: 'counter'")}>Toggle</button>
+<button data-on:click={event("toggle_code", "name: 'counter'")}>Toggle</button>
 
 # With signals
-<button data-on:click={post("update", "value: $count")}>Update</button>
-```
-
-### `get/2`
-
-Generates a Datastar `@get` action for fetching data from the server.
-
-```elixir
-# Simple fetch
-<button data-on:click={get("refresh")}>Refresh</button>
-
-# Fetch with options
-<button data-on:click={get("load_more", "page: $currentPage")}>Load More</button>
-
-# On load trigger
-<div data-on:load={get("init")}>Loading...</div>
+<button data-on:click={event("update", "value: $count")}>Update</button>
 ```
 
 ## Stateless vs Live Views
 
 ```elixir
-# Stateless view - no persistent connection
-use PhoenixDatastar
+# Stateless view - no persistent connection, events handled synchronously
+use MyAppWeb, :datastar
+# or: use PhoenixDatastar
 
 # Live view - persistent SSE connection with GenServer state
-use PhoenixDatastar, :live
+use MyAppWeb, :live_sse
+# or: use PhoenixDatastar, :live
 ```
 
-Use `:live` when you need:
+**Stateless views** handle events synchronously - state is restored from client signals on each request, and the response is returned immediately. No GenServer or SSE connection is maintained.
+
+**Live views** maintain a GenServer and SSE connection. Use `:live` when you need:
 - Real-time updates from the server (PubSub, timers)
-- Persistent state across interactions
+- Persistent server-side state across interactions
 - `handle_info/2` callbacks
 
 ## Links

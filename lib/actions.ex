@@ -9,7 +9,7 @@ defmodule PhoenixDatastar.Actions do
 
   - `assigns.session_id` must be set in your template context (automatically set by PhoenixDatastar)
   - `assigns.event_path` must be set (automatically set by PhoenixDatastar)
-  - `$_csrf_token` signal must be available (typically set via `data-signals:_csrf_token`)
+  - A `<meta name="csrf-token" content="...">` tag must be present in your layout (Phoenix includes this by default)
   """
 
   @doc """
@@ -49,7 +49,7 @@ defmodule PhoenixDatastar.Actions do
   @doc false
   def build_event(event_name, session_id, event_path, opts) do
     path = "#{event_path}/#{event_name}"
-    headers = "headers: {'x-csrf-token': $_csrf_token}"
+    headers = "headers: {'x-csrf-token': document.querySelector('meta[name=csrf-token]').content}"
     session = "session_id: '#{session_id}'"
 
     if opts,

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.0] - 2026-02-04
+
+### Added
+- Stateless views can now handle events synchronously (no GenServer required)
+- New `event/2` macro replaces `post/2` and `get/2` for triggering server events
+- `event_path` assign is now set for all views (live and stateless)
+- CSRF token is now read from meta tag automatically (no signal setup required)
+
+### Changed
+- **Breaking**: Removed `datastar_events()` macro - all event routes are now per-page
+- **Breaking**: Replaced `post/2` and `get/2` macros with single `event/2` macro
+- **Breaking**: Event route path changed from `/path/event/:event` to `/path/_event/:event`
+- Simplified routing - `datastar/3` macro now generates event routes for all views
+- Installer no longer adds `datastar_events()` to router
+
+### Fixed
+- Root path "/" now generates correct URLs (was creating double slashes like `//_event`)
+
 ## [0.1.2] - 2026-02-01
 
 ### Added

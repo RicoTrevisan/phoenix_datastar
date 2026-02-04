@@ -13,7 +13,7 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
   4. Create the DatastarHTML module
   5. Add `import PhoenixDatastar.Router` to your router
   6. Add `"sse"` to the browser pipeline's `:accepts` plug
-  7. Add `def live_sse` to your web module
+  7. Add `def live_sse` and `def datastar` to your web module
   8. Add the Datastar JavaScript to your root layout
   """
 
@@ -217,7 +217,6 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
       Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
         with {:ok, zipper} <- Igniter.Libs.Phoenix.move_to_router_use(igniter, zipper) do
           import_code = "import PhoenixDatastar.Router"
-          events_code = "datastar_events()"
 
           # Check if import already exists in the module
           case Igniter.Code.Function.move_to_function_call_in_current_scope(
@@ -226,35 +225,24 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
                  1,
                  &Igniter.Code.Function.argument_equals?(&1, 0, PhoenixDatastar.Router)
                ) do
-            {:ok, zipper} ->
-              # Import exists, check if datastar_events() exists
-              case Igniter.Code.Function.move_to_function_call_in_current_scope(
-                     zipper,
-                     :datastar_events,
-                     [0, 1]
-                   ) do
-                {:ok, _} ->
-                  {:ok, zipper}
-
-                :error ->
-                  {:ok, Igniter.Code.Common.add_code(zipper, events_code, placement: :after)}
-              end
+            {:ok, _} ->
+              # Import already exists
+              {:ok, zipper}
 
             :error ->
-              # Add import and datastar_events() after the use statement
-              zipper = Igniter.Code.Common.add_code(zipper, import_code, placement: :after)
-              {:ok, Igniter.Code.Common.add_code(zipper, events_code, placement: :after)}
+              # Add import after the use statement
+              {:ok, Igniter.Code.Common.add_code(zipper, import_code, placement: :after)}
           end
         else
           _ ->
             {:warning,
-             "Could not add `import PhoenixDatastar.Router` and `datastar_events()` to your router. Please add them manually."}
+             "Could not add `import PhoenixDatastar.Router` to your router. Please add it manually."}
         end
       end)
     else
       Igniter.add_warning(
         igniter,
-        "Could not find a router. Please add `import PhoenixDatastar.Router` and `datastar_events()` manually."
+        "Could not find a router. Please add `import PhoenixDatastar.Router` manually."
       )
     end
   end
@@ -265,8 +253,6 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     Add routes in your router (lib/#{web_module_path}/router.ex):
 
         datastar "/counter", CounterStar
-
-    Ensure `datastar_events()` is called at the top level of your router (the installer should have added this).
     """)
   end
 end
