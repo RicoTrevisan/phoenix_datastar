@@ -18,6 +18,10 @@
 ### Fixed
 - Root path "/" now generates correct URLs (was creating double slashes like `//_event`)
 
+### Removed
+- Removed dead `:datastar_update` code path from SSE loop
+- Removed unnecessary `id` attribute from DatastarHTML wrapper (was only used by dead code)
+
 ## [0.1.2] - 2026-02-01
 
 ### Added

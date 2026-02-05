@@ -93,11 +93,6 @@ defmodule PhoenixDatastar.Server do
   @spec enter_loop(PhoenixDatastar.SSE.t(), String.t()) :: PhoenixDatastar.SSE.t()
   def enter_loop(sse, session_id) do
     receive do
-      {:datastar_update, html, _assigns} ->
-        Logger.debug("SSE full update, size: #{byte_size(html)}")
-        sse = Elements.patch(sse, html, selector: "#ds-live-#{session_id}", mode: :inner)
-        enter_loop(sse, session_id)
-
       {:datastar_patches, patches} ->
         Logger.debug("SSE #{length(patches)} patch(es)")
 

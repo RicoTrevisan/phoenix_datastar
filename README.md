@@ -1,3 +1,6 @@
+> [!WARNING]
+> This is still in alpha, I'm figuring out the right apis.
+
 # PhoenixDatastar
 
 **A LiveView-like experience for Phoenix using Datastar's SSE + Signals architecture.**
@@ -74,8 +77,7 @@ defmodule MyAppWeb.DatastarHTML do
 
   def mount(assigns) do
     ~H"""
-      <div 
-        id={"ds-live-#{@session_id}"} 
+      <div
         data-signals={"{session_id: '#{@session_id}'}"}
         data-init__once={@stream_path && "@get('#{@stream_path}', {openWhenHidden: true})"}
       >

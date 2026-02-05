@@ -81,7 +81,6 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     def mount(assigns) do
       ~H\"\"\"
       <div
-        id={"ds-live-\#{@session_id}"}
         data-signals={"{session_id: '\#{@session_id}'}"}
         data-init__once={@stream_path && "@get('\#{@stream_path}', {openWhenHidden: true})"}
       >
