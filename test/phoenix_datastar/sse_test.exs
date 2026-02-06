@@ -41,11 +41,12 @@ defmodule PhoenixDatastar.SSETest do
     end
 
     test "formats an event with multiple data lines" do
-      result = SSE.format_event("datastar-patch-elements", [
-        "selector #count",
-        "mode outer",
-        "elements <span>42</span>"
-      ])
+      result =
+        SSE.format_event("datastar-patch-elements", [
+          "selector #count",
+          "mode outer",
+          "elements <span>42</span>"
+        ])
 
       expected = """
       event: datastar-patch-elements
