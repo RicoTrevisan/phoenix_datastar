@@ -171,7 +171,10 @@ defmodule PhoenixDatastar.Plug do
       end
     rescue
       e ->
-        Logger.error("Stateless event error: #{inspect(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}")
+        Logger.error(
+          "Stateless event error: #{inspect(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}"
+        )
+
         send_resp(conn, 500, "Internal server error")
     end
   end

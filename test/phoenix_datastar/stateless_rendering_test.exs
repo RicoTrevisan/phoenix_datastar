@@ -3,15 +3,6 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
   import Phoenix.ConnTest
   import Plug.Conn
 
-  defmodule TestHTML do
-    use Phoenix.Component
-
-    def mount(assigns) do
-      # Render stream path and event path so we can check them
-      ~H"Stream: <%= @stream_path %> Event: <%= @event_path %>"
-    end
-  end
-
   defmodule StatelessView do
     use PhoenixDatastar
 
@@ -65,15 +56,15 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
     conn =
       Plug.Conn.put_private(conn, :datastar, %{
         view: StatelessView,
-        path: "/test",
-        html_module: TestHTML
+        path: "/test"
       })
 
     conn = PhoenixDatastar.PageController.mount(conn, %{})
 
-    # Check rendered HTML
-    # If stateless, stream_path should be nil or empty.
-    refute html_response(conn, 200) =~ "Stream: /test/stream"
+    # stream_path should be nil for stateless views
+    assert conn.assigns[:datastar_stream_path] == nil
+    # session_id should be generated
+    assert is_binary(conn.assigns[:datastar_session_id])
   end
 
   test "stateless view should have event_path set" do
@@ -83,14 +74,12 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
     conn =
       Plug.Conn.put_private(conn, :datastar, %{
         view: StatelessView,
-        path: "/test",
-        html_module: TestHTML
+        path: "/test"
       })
 
     conn = PhoenixDatastar.PageController.mount(conn, %{})
 
-    # Check that event_path is set for stateless views
-    assert html_response(conn, 200) =~ "Event: /test/_event"
+    assert conn.assigns[:datastar_event_path] == "/test/_event"
   end
 
   test "root path should have correct event_path without double slashes" do
@@ -100,17 +89,29 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
     conn =
       Plug.Conn.put_private(conn, :datastar, %{
         view: StatelessView,
-        path: "/",
-        html_module: TestHTML
+        path: "/"
       })
 
     conn = PhoenixDatastar.PageController.mount(conn, %{})
 
-    response = html_response(conn, 200)
-
     # Should be "/_event" not "//_event"
-    assert response =~ "Event: /_event"
-    refute response =~ "Event: //_event"
+    assert conn.assigns[:datastar_event_path] == "/_event"
+  end
+
+  test "stateless view renders content through PageHTML" do
+    conn = Phoenix.ConnTest.build_conn()
+    conn = Map.put(conn, :params, %{"_format" => "html"})
+
+    conn =
+      Plug.Conn.put_private(conn, :datastar, %{
+        view: StatelessView,
+        path: "/test"
+      })
+
+    conn = PhoenixDatastar.PageController.mount(conn, %{})
+
+    # The response should contain the view's rendered content
+    assert html_response(conn, 200) =~ "Hello"
   end
 
   test "stateless view handles events and returns SSE response" do

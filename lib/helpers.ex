@@ -50,7 +50,7 @@ defmodule PhoenixDatastar.Helpers do
   Internal assigns that should be filtered from signals.
   """
   @spec internal_assigns() :: [atom()]
-  def internal_assigns, do: [:session_id, :base_path, :stream_path]
+  def internal_assigns, do: [:session_id, :base_path, :stream_path, :event_path]
 
   @doc """
   Filters internal assigns from a map, returning only user-defined signals.
