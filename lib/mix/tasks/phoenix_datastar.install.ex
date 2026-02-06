@@ -8,13 +8,11 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
 
   This will:
   1. Add the Registry to your application's supervision tree
-  2. Configure the HTML module for PhoenixDatastar
-  3. Enable stripping of debug annotations in dev (for SSE patches)
-  4. Create the DatastarHTML module
-  5. Add `import PhoenixDatastar.Router` to your router
-  6. Add `"sse"` to the browser pipeline's `:accepts` plug
-  7. Add `def live_sse` and `def datastar` to your web module
-  8. Add the Datastar JavaScript to your root layout
+  2. Enable stripping of debug annotations in dev (for SSE patches)
+  3. Add `import PhoenixDatastar.Router` to your router
+  4. Add `"sse"` to the browser pipeline's `:accepts` plug
+  5. Add `def live_sse` and `def datastar` to your web module
+  6. Add the Datastar JavaScript to your root layout
   """
 
   use Igniter.Mix.Task
@@ -30,16 +28,13 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
   @impl Igniter.Mix.Task
   def igniter(igniter) do
     web_module = Igniter.Libs.Phoenix.web_module(igniter)
-    html_module = Module.concat(web_module, DatastarHTML)
 
     web_module_path =
       web_module |> Module.split() |> Enum.map(&Macro.underscore/1) |> Path.join()
 
     igniter
     |> add_registry_to_supervision_tree()
-    |> configure_html_module(html_module)
     |> configure_strip_debug_annotations()
-    |> create_datastar_html_module(html_module)
     |> add_router_import()
     |> add_sse_to_browser_pipeline()
     |> add_live_sse_to_web_module(web_module)
@@ -54,16 +49,6 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     )
   end
 
-  defp configure_html_module(igniter, html_module) do
-    Igniter.Project.Config.configure_new(
-      igniter,
-      "config.exs",
-      :phoenix_datastar,
-      [:html_module],
-      html_module
-    )
-  end
-
   defp configure_strip_debug_annotations(igniter) do
     Igniter.Project.Config.configure_new(
       igniter,
@@ -72,23 +57,6 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
       [:strip_debug_annotations],
       true
     )
-  end
-
-  defp create_datastar_html_module(igniter, html_module) do
-    Igniter.Project.Module.create_module(igniter, html_module, """
-    use Phoenix.Component
-
-    def mount(assigns) do
-      ~H\"\"\"
-      <div
-        data-signals={"{session_id: '\#{@session_id}'}"}
-        data-init__once={@stream_path && "@get('\#{@stream_path}', {openWhenHidden: true})"}
-      >
-        {@inner_html}
-      </div>
-      \"\"\"
-    end
-    """)
   end
 
   defp add_sse_to_browser_pipeline(igniter) do
@@ -252,6 +220,13 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     Add routes in your router (lib/#{web_module_path}/router.ex):
 
         datastar "/counter", CounterStar
+
+    To customize the mount wrapper template, create your own HTML module
+    and configure it in config/config.exs:
+
+        config :phoenix_datastar, :html_module, #{Igniter.Libs.Phoenix.web_module(igniter)}.DatastarHTML
+
+    See PhoenixDatastar.DefaultHTML for details.
     """)
   end
 end

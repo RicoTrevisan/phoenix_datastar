@@ -4,17 +4,18 @@ defmodule PhoenixDatastar.PageController do
 
   Generates session ID, starts GenServer, and renders the initial HTML.
 
-  ## Configuration
+  By default, `PhoenixDatastar.DefaultHTML` is used as the mount template.
+  To customize the wrapper, you can override it:
 
-  The HTML module used for rendering can be configured:
+  1. Globally via application config:
 
-  1. Per-route via the `datastar/3` macro:
+      config :phoenix_datastar, :html_module, MyAppWeb.DatastarHTML
+
+  2. Per-route via the `datastar/3` macro:
 
       datastar "/counter", CounterStar, html_module: MyAppWeb.DatastarHTML
 
-  2. Globally via application config:
-
-      config :phoenix_datastar, :html_module, MyAppWeb.DatastarHTML
+  See `PhoenixDatastar.DefaultHTML` for a custom module example.
   """
 
   @session_id_bytes 16
@@ -30,7 +31,7 @@ defmodule PhoenixDatastar.PageController do
   Expects `conn.private.datastar` to contain:
     * `:view` - The view module
     * `:path` - The base path
-    * `:html_module` - Optional HTML module override
+    * `:html_module` - Optional HTML module override (defaults to `PhoenixDatastar.DefaultHTML`)
   """
   @spec mount(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def mount(conn, _params) do
@@ -92,17 +93,7 @@ defmodule PhoenixDatastar.PageController do
   defp get_html_module(conn) do
     conn.private.datastar[:html_module] ||
       Application.get_env(:phoenix_datastar, :html_module) ||
-      raise """
-      No HTML module configured for PhoenixDatastar.
-
-      Configure it globally:
-
-          config :phoenix_datastar, :html_module, MyAppWeb.DatastarHTML
-
-      Or per-route:
-
-          datastar "/path", MyView, html_module: MyAppWeb.DatastarHTML
-      """
+      PhoenixDatastar.DefaultHTML
   end
 
   defp generate_session_id do

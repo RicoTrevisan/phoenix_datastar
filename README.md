@@ -1,5 +1,5 @@
-> [!WARNING]
 > This is still in alpha, I'm figuring out the right apis.
+> Comments and ideas welcome.
 
 # PhoenixDatastar
 
@@ -19,11 +19,12 @@ mix igniter.install phoenix_datastar
 
 This will automatically:
 - Add the Registry to your supervision tree
-- Configure the HTML module
 - Enable stripping of debug annotations in dev
-- Create the DatastarHTML module
+- Add the Datastar JavaScript to your layout
+- Import the router macro
+- Add `live_sse` and `datastar` helpers to your web module
 
-You'll then just need to manually add the Datastar JavaScript to your layout and import the router macro (the installer will show you instructions).
+You'll then just need to add your routes (the installer will show you instructions).
 
 ### Manual Installation
 
@@ -62,33 +63,7 @@ children = [
 ]
 ```
 
-#### 3. Configure the HTML module
-Create a module that renders the mount template. This wraps the body with a signal and a call to get the sse stream started.
-
-In your `config/config.exs`:
-
-```elixir
-config :phoenix_datastar, :html_module, MyAppWeb.DatastarHTML
-```
-
-```elixir
-defmodule MyAppWeb.DatastarHTML do
-  use Phoenix.Component
-
-  def mount(assigns) do
-    ~H"""
-      <div
-        data-signals={"{session_id: '#{@session_id}'}"}
-        data-init__once={@stream_path && "@get('#{@stream_path}', {openWhenHidden: true})"}
-      >
-        {@inner_html}
-      </div>
-    """
-  end
-end
-```
-
-#### 4. Import the router macro
+#### 3. Import the router macro
 
 In your router:
 
@@ -102,7 +77,7 @@ scope "/", MyAppWeb do
 end
 ```
 
-#### 5. Create `:live_sse` and `:datastar` in your `_web.ex`
+#### 4. Create `:live_sse` and `:datastar` in your `_web.ex`
 
 ```ex
 defmodule MyAppWeb do
@@ -128,7 +103,7 @@ defmodule MyAppWeb do
 end
 ```
 
-#### 6. Strip debug annotations in dev (optional)
+#### 5. Strip debug annotations in dev (optional)
 
 In your `config/dev.exs`, enable stripping of LiveView debug annotations from SSE patches:
 
@@ -137,6 +112,41 @@ config :phoenix_datastar, :strip_debug_annotations, true
 ```
 
 This removes `<!-- @caller ... -->` comments and `data-phx-loc` attributes from SSE patches. The initial page load keeps annotations intact for debugging.
+
+#### 6. Customize the mount template (optional)
+
+PhoenixDatastar ships with a built-in mount template (`PhoenixDatastar.DefaultHTML`) that wraps your view content with the necessary Datastar signals and SSE initialization. If you need to customize it (e.g., add classes, extra attributes, or additional markup), create your own module:
+
+```elixir
+defmodule MyAppWeb.DatastarHTML do
+  use Phoenix.Component
+
+  def mount(assigns) do
+    ~H"""
+    <div
+      id="app"
+      class="my-wrapper"
+      data-signals={"{session_id: '#{@session_id}'}"}
+      data-init__once={@stream_path && "@get('#{@stream_path}', {openWhenHidden: true})"}
+    >
+      {@inner_html}
+    </div>
+    """
+  end
+end
+```
+
+Then configure it in `config/config.exs`:
+
+```elixir
+config :phoenix_datastar, :html_module, MyAppWeb.DatastarHTML
+```
+
+Or per-route:
+
+```elixir
+datastar "/custom", CustomStar, html_module: MyAppWeb.DatastarHTML
+```
 
 
 ## Usage
