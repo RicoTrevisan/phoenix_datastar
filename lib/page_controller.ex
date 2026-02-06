@@ -3,18 +3,8 @@ defmodule PhoenixDatastar.PageController do
   Controller for rendering the initial PhoenixDatastar page.
 
   Generates session ID, starts GenServer, and renders the initial HTML.
-
-  ## Configuration
-
-  The HTML module used for rendering can be configured:
-
-  1. Per-route via the `datastar/3` macro:
-
-      datastar "/counter", CounterStar, html_module: MyAppWeb.DatastarHTML
-
-  2. Globally via application config:
-
-      config :phoenix_datastar, :html_module, MyAppWeb.DatastarHTML
+  Sets `datastar_session_id`, `datastar_stream_path`, and `datastar_event_path`
+  on `conn.assigns` so the root layout can consume them.
   """
 
   @session_id_bytes 16
@@ -30,12 +20,10 @@ defmodule PhoenixDatastar.PageController do
   Expects `conn.private.datastar` to contain:
     * `:view` - The view module
     * `:path` - The base path
-    * `:html_module` - Optional HTML module override
   """
   @spec mount(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def mount(conn, _params) do
     %{view: view, path: path} = conn.private.datastar
-    html_module = get_html_module(conn)
 
     session_id = generate_session_id()
     session = Helpers.get_session_map(conn)
@@ -78,31 +66,14 @@ defmodule PhoenixDatastar.PageController do
       end
 
     conn
-    |> put_view(html_module)
+    |> assign(:datastar_session_id, session_id)
+    |> assign(:datastar_stream_path, stream_path)
+    |> assign(:datastar_event_path, event_path)
+    |> put_view(PhoenixDatastar.PageHTML)
     |> render(:mount,
-      session_id: session_id,
-      stream_path: stream_path,
-      event_path: event_path,
-      base_path: path,
       inner_html: inner_html,
       page_title: "#{Helpers.get_view_name(view)} - Datastar"
     )
-  end
-
-  defp get_html_module(conn) do
-    conn.private.datastar[:html_module] ||
-      Application.get_env(:phoenix_datastar, :html_module) ||
-      raise """
-      No HTML module configured for PhoenixDatastar.
-
-      Configure it globally:
-
-          config :phoenix_datastar, :html_module, MyAppWeb.DatastarHTML
-
-      Or per-route:
-
-          datastar "/path", MyView, html_module: MyAppWeb.DatastarHTML
-      """
   end
 
   defp generate_session_id do

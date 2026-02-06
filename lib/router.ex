@@ -14,23 +14,12 @@ defmodule PhoenixDatastar.Router do
 
         # Live view (use PhoenixDatastar, :live)
         datastar "/multiplayer", MultiplayerStar
-
-        # With custom HTML module
-        datastar "/custom", CustomStar, html_module: MyAppWeb.CustomHTML
       end
 
   `datastar/3` generates per-view routes:
     - GET /counter - renders the initial page
     - POST /counter/_event/:event - handles events
     - GET /counter/stream - SSE stream endpoint (live views only)
-
-  ## Configuration
-
-  Set a default HTML module in your config:
-
-      config :phoenix_datastar, :html_module, MyAppWeb.DatastarHTML
-
-  Or pass `html_module` option per-route to override.
   """
 
   @doc """
@@ -38,11 +27,6 @@ defmodule PhoenixDatastar.Router do
 
   The macro auto-detects whether the view is stateless (`use PhoenixDatastar`) or
   live (`use PhoenixDatastar, :live`) and generates appropriate routes.
-
-  ## Options
-
-    * `:html_module` - The Phoenix HTML module to use for rendering the mount template.
-      Defaults to `Application.get_env(:phoenix_datastar, :html_module)`.
   """
   defmacro datastar(path, view, opts \\ []) do
     # Expand at macro time in caller's context - this resolves any existing
@@ -51,8 +35,6 @@ defmodule PhoenixDatastar.Router do
     opts = Macro.expand_literals(opts, %{__CALLER__ | function: {:datastar, 3}})
 
     quote bind_quoted: [path: path, view: view, opts: opts] do
-      html_module = Keyword.get(opts, :html_module)
-
       # Apply scope alias only if view isn't already fully qualified.
       # Module atoms like CounterSse become "Elixir.CounterSse" (1 dot),
       # while LiveStarTestWeb.CounterSse becomes "Elixir.LiveStarTestWeb.CounterSse" (2+ dots).
@@ -71,7 +53,7 @@ defmodule PhoenixDatastar.Router do
 
       # Initial page load (all views)
       get(path, PhoenixDatastar.PageController, :mount,
-        private: %{datastar: %{view: view, path: full_path, html_module: html_module}},
+        private: %{datastar: %{view: view, path: full_path}},
         alias: false
       )
 

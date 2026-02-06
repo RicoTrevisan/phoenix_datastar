@@ -8,13 +8,12 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
 
   This will:
   1. Add the Registry to your application's supervision tree
-  2. Configure the HTML module for PhoenixDatastar
-  3. Enable stripping of debug annotations in dev (for SSE patches)
-  4. Create the DatastarHTML module
-  5. Add `import PhoenixDatastar.Router` to your router
-  6. Add `"sse"` to the browser pipeline's `:accepts` plug
-  7. Add `def live_sse` and `def datastar` to your web module
-  8. Add the Datastar JavaScript to your root layout
+  2. Enable stripping of debug annotations in dev (for SSE patches)
+  3. Add `import PhoenixDatastar.Router` to your router
+  4. Add `"sse"` to the browser pipeline's `:accepts` plug
+  5. Add `def live_sse` and `def datastar` to your web module
+  6. Add the Datastar JavaScript to your root layout
+  7. Add `data-signals` and `data-init__once` attributes to `<body>` in root layout
   """
 
   use Igniter.Mix.Task
@@ -30,20 +29,18 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
   @impl Igniter.Mix.Task
   def igniter(igniter) do
     web_module = Igniter.Libs.Phoenix.web_module(igniter)
-    html_module = Module.concat(web_module, DatastarHTML)
 
     web_module_path =
       web_module |> Module.split() |> Enum.map(&Macro.underscore/1) |> Path.join()
 
     igniter
     |> add_registry_to_supervision_tree()
-    |> configure_html_module(html_module)
     |> configure_strip_debug_annotations()
-    |> create_datastar_html_module(html_module)
     |> add_router_import()
     |> add_sse_to_browser_pipeline()
     |> add_live_sse_to_web_module(web_module)
     |> add_datastar_script_to_layout(web_module_path)
+    |> add_signals_to_layout_body(web_module_path)
     |> add_manual_step_notices(web_module_path)
   end
 
@@ -51,16 +48,6 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     Igniter.Project.Application.add_new_child(
       igniter,
       {Registry, [keys: :unique, name: PhoenixDatastar.Registry]}
-    )
-  end
-
-  defp configure_html_module(igniter, html_module) do
-    Igniter.Project.Config.configure_new(
-      igniter,
-      "config.exs",
-      :phoenix_datastar,
-      [:html_module],
-      html_module
     )
   end
 
@@ -72,23 +59,6 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
       [:strip_debug_annotations],
       true
     )
-  end
-
-  defp create_datastar_html_module(igniter, html_module) do
-    Igniter.Project.Module.create_module(igniter, html_module, """
-    use Phoenix.Component
-
-    def mount(assigns) do
-      ~H\"\"\"
-      <div
-        data-signals={"{session_id: '\#{@session_id}'}"}
-        data-init__once={@stream_path && "@get('\#{@stream_path}', {openWhenHidden: true})"}
-      >
-        {@inner_html}
-      </div>
-      \"\"\"
-    end
-    """)
   end
 
   defp add_sse_to_browser_pipeline(igniter) do
@@ -244,6 +214,41 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
         "Could not find a router. Please add `import PhoenixDatastar.Router` manually."
       )
     end
+  end
+
+  defp add_signals_to_layout_body(igniter, web_module_path) do
+    layout_path = "lib/#{web_module_path}/components/layouts/root.html.heex"
+
+    Igniter.update_file(igniter, layout_path, fn source ->
+      content = Rewrite.Source.get(source, :content)
+
+      if String.contains?(content, "datastar_session_id") do
+        # Already has datastar signals on body
+        source
+      else
+        body_attrs =
+          ~s| data-signals={@datastar_session_id && Jason.encode!(%{session_id: @datastar_session_id})}| <>
+            ~s|\n    data-init__once={@datastar_stream_path && "@get('\#{@datastar_stream_path}', {openWhenHidden: true})"}|
+
+        case Regex.run(~r/<body([^>]*)>/, content) do
+          [full_match, existing_attrs] ->
+            trimmed = String.trim(existing_attrs)
+
+            replacement =
+              if trimmed == "" do
+                "<body\n    #{String.trim(body_attrs)}\n  >"
+              else
+                "<body\n    #{String.trim(body_attrs)}\n    #{trimmed}\n  >"
+              end
+
+            new_content = String.replace(content, full_match, replacement, global: false)
+            Rewrite.Source.update(source, :content, new_content)
+
+          _ ->
+            source
+        end
+      end
+    end)
   end
 
   defp add_manual_step_notices(igniter, web_module_path) do

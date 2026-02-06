@@ -19,11 +19,14 @@ mix igniter.install phoenix_datastar
 
 This will automatically:
 - Add the Registry to your supervision tree
-- Configure the HTML module
 - Enable stripping of debug annotations in dev
-- Create the DatastarHTML module
+- Add `import PhoenixDatastar.Router` to your router
+- Add `"sse"` to the browser pipeline's `:accepts` plug
+- Add `def live_sse` and `def datastar` to your web module
+- Add the Datastar JavaScript to your root layout's `<head>`
+- Add `data-signals` and `data-init__once` attributes to `<body>` in your root layout
 
-You'll then just need to manually add the Datastar JavaScript to your layout and import the router macro (the installer will show you instructions).
+You'll then just need to add routes (the installer will show you instructions).
 
 ### Manual Installation
 
@@ -62,31 +65,18 @@ children = [
 ]
 ```
 
-#### 3. Configure the HTML module
-Create a module that renders the mount template. This wraps the body with a signal and a call to get the sse stream started.
+#### 3. Add signal attributes to your root layout
 
-In your `config/config.exs`:
+In your `root.html.heex`, add the Datastar attributes to the `<body>` tag:
 
-```elixir
-config :phoenix_datastar, :html_module, MyAppWeb.DatastarHTML
+```html
+<body
+  data-signals={@datastar_session_id && Jason.encode!(%{session_id: @datastar_session_id})}
+  data-init__once={@datastar_stream_path && "@get('#{@datastar_stream_path}', {openWhenHidden: true})"}
+>
 ```
 
-```elixir
-defmodule MyAppWeb.DatastarHTML do
-  use Phoenix.Component
-
-  def mount(assigns) do
-    ~H"""
-      <div
-        data-signals={"{session_id: '#{@session_id}'}"}
-        data-init__once={@stream_path && "@get('#{@stream_path}', {openWhenHidden: true})"}
-      >
-        {@inner_html}
-      </div>
-    """
-  end
-end
-```
+These attributes are conditionally rendered — on non-Datastar pages they are omitted since the assigns are not set.
 
 #### 4. Import the router macro
 
