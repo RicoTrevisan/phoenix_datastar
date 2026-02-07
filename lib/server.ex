@@ -67,9 +67,9 @@ defmodule PhoenixDatastar.Server do
   end
 
   @doc """
-  Get the current rendered HTML without subscribing.
+  Get the current rendered HTML and initial signals without subscribing.
   """
-  @spec get_snapshot(String.t()) :: {:ok, String.t()}
+  @spec get_snapshot(String.t()) :: {:ok, String.t(), map()}
   def get_snapshot(session_id) do
     GenServer.call(Registry.via(session_id), :get_snapshot)
   end
@@ -176,7 +176,8 @@ defmodule PhoenixDatastar.Server do
   @impl true
   def handle_call(:get_snapshot, _from, %{view: view, socket: socket} = state) do
     html = render_html(view, socket)
-    {:reply, {:ok, html}, state}
+    signals = Helpers.user_signals(socket.assigns)
+    {:reply, {:ok, html, signals}, state}
   end
 
   @impl true

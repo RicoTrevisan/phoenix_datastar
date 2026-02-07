@@ -33,7 +33,7 @@ Add `phoenix_datastar` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:phoenix_datastar, "~> 0.1.3"}
+    {:phoenix_datastar, "~> 0.1.4"}
   ]
 end
 ```
@@ -115,7 +115,14 @@ This removes `<!-- @caller ... -->` comments and `data-phx-loc` attributes from 
 
 #### 6. Customize the mount template (optional)
 
-PhoenixDatastar ships with a built-in mount template (`PhoenixDatastar.DefaultHTML`) that wraps your view content with the necessary Datastar signals and SSE initialization. If you need to customize it (e.g., add classes, extra attributes, or additional markup), create your own module:
+PhoenixDatastar ships with a built-in mount template (`PhoenixDatastar.DefaultHTML`) that wraps your view content with the necessary Datastar signals and SSE initialization. **You don't need to create your own** — it works out of the box.
+
+The default template automatically:
+- Injects `session_id` as a Datastar signal
+- Initializes all assigns from `mount/3` as Datastar signals (via `@initial_signals`)
+- Sets up the SSE stream connection for live views
+
+If you need to customize it (e.g., add classes, extra attributes, or additional markup), create your own module:
 
 ```elixir
 defmodule MyAppWeb.DatastarHTML do
@@ -126,7 +133,7 @@ defmodule MyAppWeb.DatastarHTML do
     <div
       id="app"
       class="my-wrapper"
-      data-signals={"{session_id: '#{@session_id}'}"}
+      data-signals={Jason.encode!(Map.put(@initial_signals, :session_id, @session_id))}
       data-init__once={@stream_path && "@get('#{@stream_path}', {openWhenHidden: true})"}
     >
       {@inner_html}
@@ -135,6 +142,13 @@ defmodule MyAppWeb.DatastarHTML do
   end
 end
 ```
+
+Available assigns in the mount template:
+- `@session_id` — unique session identifier
+- `@initial_signals` — map of user-defined assigns from `mount/3` (internal assigns like `base_path` are filtered out)
+- `@stream_path` — SSE stream URL (nil for stateless views)
+- `@event_path` — event POST URL
+- `@inner_html` — the rendered view content
 
 Then configure it in `config/config.exs`:
 
@@ -161,6 +175,8 @@ defmodule MyAppWeb.CounterStar do
 
   @impl PhoenixDatastar
   def mount(_params, _session, socket) do
+    # Assigns are automatically initialized as Datastar signals —
+    # no need to manually add data-signals in your template
     {:ok, assign(socket, count: 0)}
   end
 
@@ -187,6 +203,10 @@ defmodule MyAppWeb.CounterStar do
   end
 end
 ```
+
+> **Note:** In previous versions you had to manually declare Datastar signals in your template
+> with `data-signals={Jason.encode!(%{count: @count})}`. This is no longer needed — assigns
+> set in `mount/3` are automatically injected as signals by the wrapper template.
 
 ## The Lifecycle
 

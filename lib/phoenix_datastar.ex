@@ -11,6 +11,7 @@ defmodule PhoenixDatastar do
 
         @impl PhoenixDatastar
         def mount(_params, _session, socket) do
+          # Assigns are automatically initialized as Datastar signals
           {:ok, assign(socket, :count, 0)}
         end
 
@@ -23,9 +24,9 @@ defmodule PhoenixDatastar do
         @impl PhoenixDatastar
         def render(assigns) do
           ~H\"\"\"
-          <div data-signals={Jason.encode!(%{count: @count})}>
+          <div>
             <span data-text="$count"></span>
-            <button data-on:click="@post('/counter/event/increment')">+</button>
+            <button data-on:click={event("increment")}>+</button>
           </div>
           \"\"\"
         end

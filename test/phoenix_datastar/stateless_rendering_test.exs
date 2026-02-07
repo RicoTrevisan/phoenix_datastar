@@ -12,6 +12,14 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
     end
   end
 
+  defmodule TestHTMLWithSignals do
+    use Phoenix.Component
+
+    def mount(assigns) do
+      ~H"Signals: <%= Jason.encode!(@initial_signals) %>"
+    end
+  end
+
   defmodule StatelessView do
     use PhoenixDatastar
 
@@ -156,5 +164,68 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
     # Should include signal update for the new count
     assert body =~ "event: datastar-patch-signals"
     assert body =~ "count"
+  end
+
+  test "initial signals from mount are passed to template" do
+    conn = Phoenix.ConnTest.build_conn()
+    conn = Map.put(conn, :params, %{"_format" => "html"})
+
+    conn =
+      Plug.Conn.put_private(conn, :datastar, %{
+        view: StatelessViewWithEvent,
+        path: "/test",
+        html_module: TestHTMLWithSignals
+      })
+
+    conn = PhoenixDatastar.PageController.mount(conn, %{})
+
+    response = html_response(conn, 200)
+
+    # The mount assigns count: 0, so it should appear in initial_signals
+    # HTML entities are encoded in the response, so quotes become &quot;
+    assert response =~ "count" and response =~ ":0"
+  end
+
+  test "initial signals exclude internal assigns" do
+    conn = Phoenix.ConnTest.build_conn()
+    conn = Map.put(conn, :params, %{"_format" => "html"})
+
+    conn =
+      Plug.Conn.put_private(conn, :datastar, %{
+        view: StatelessViewWithEvent,
+        path: "/test",
+        html_module: TestHTMLWithSignals
+      })
+
+    conn = PhoenixDatastar.PageController.mount(conn, %{})
+
+    response = html_response(conn, 200)
+
+    # Internal assigns should NOT appear in initial_signals
+    refute response =~ "session_id"
+    refute response =~ "base_path"
+    refute response =~ "stream_path"
+    refute response =~ "event_path"
+  end
+
+  test "default HTML module renders initial signals in data-signals" do
+    conn = Phoenix.ConnTest.build_conn()
+    conn = Map.put(conn, :params, %{"_format" => "html"})
+
+    conn =
+      Plug.Conn.put_private(conn, :datastar, %{
+        view: StatelessViewWithEvent,
+        path: "/test",
+        html_module: nil
+      })
+
+    conn = PhoenixDatastar.PageController.mount(conn, %{})
+
+    response = html_response(conn, 200)
+
+    # DefaultHTML should render data-signals with both session_id and user assigns
+    assert response =~ "data-signals="
+    assert response =~ "session_id"
+    assert response =~ "count"
   end
 end

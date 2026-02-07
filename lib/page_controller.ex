@@ -45,16 +45,16 @@ defmodule PhoenixDatastar.PageController do
     # Use Path.join to handle root path "/" correctly (avoids "//")
     event_path = Path.join(path, "_event")
 
-    {inner_html, stream_path} =
+    {inner_html, stream_path, initial_signals} =
       if PhoenixDatastar.live?(view) do
         stream_path = Path.join(path, "stream")
         # Start GenServer for this session
         {:ok, _pid} = Server.ensure_started(view, session_id, conn.params, session, path)
 
-        # Get rendered HTML from GenServer
-        {:ok, inner_html} = Server.get_snapshot(session_id)
+        # Get rendered HTML and initial signals from GenServer
+        {:ok, inner_html, initial_signals} = Server.get_snapshot(session_id)
 
-        {inner_html, stream_path}
+        {inner_html, stream_path, initial_signals}
       else
         # Stateless: Render directly without GenServer
         socket = %PhoenixDatastar.Socket{
@@ -75,7 +75,8 @@ defmodule PhoenixDatastar.PageController do
           end
 
         inner_html = Helpers.render_html(view, socket)
-        {inner_html, nil}
+        initial_signals = Helpers.user_signals(socket.assigns)
+        {inner_html, nil, initial_signals}
       end
 
     conn
@@ -86,6 +87,7 @@ defmodule PhoenixDatastar.PageController do
       event_path: event_path,
       base_path: path,
       inner_html: inner_html,
+      initial_signals: initial_signals,
       page_title: "#{Helpers.get_view_name(view)} - Datastar"
     )
   end

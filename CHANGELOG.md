@@ -1,26 +1,38 @@
 # Changelog
 
-## [0.2.0] - 2026-02-04
+## [0.1.5] - 2026-02-07
 
 ### Added
-- Stateless views can now handle events synchronously (no GenServer required)
-- New `event/2` macro replaces `post/2` and `get/2` for triggering server events
-- `event_path` assign is now set for all views (live and stateless)
-- CSRF token is now read from meta tag automatically (no signal setup required)
-
-### Changed
-- **Breaking**: Removed `datastar_events()` macro - all event routes are now per-page
-- **Breaking**: Replaced `post/2` and `get/2` macros with single `event/2` macro
-- **Breaking**: Event route path changed from `/path/event/:event` to `/path/_event/:event`
-- Simplified routing - `datastar/3` macro now generates event routes for all views
-- Installer no longer adds `datastar_events()` to router
+- **Built-in mount template**: The HTML wrapper (`DefaultHTML`) is now shipped inside the package. You no longer need to create a `DatastarHTML` module in your app — it works out of the box. To customize, configure `html_module` globally or per-route (see README).
+- Installer no longer generates a `DatastarHTML` module — the built-in `DefaultHTML` is used by default.
+- **Auto-injected initial signals**: Assigns set in `mount/3` are now automatically initialized as Datastar signals on the wrapper element. No more manually adding `data-signals={Jason.encode!(%{count: @count})}` in your `render/1` — just `assign(socket, :count, 0)` in `mount/3` and use `$count` in your template.
+- `@initial_signals` assign is now available in custom HTML modules (see `DefaultHTML` docs).
+- New tests for initial signal injection and internal assign filtering.
 
 ### Fixed
-- Root path "/" now generates correct URLs (was creating double slashes like `//_event`)
+- `event_path` was leaking as a user signal — added it to `internal_assigns` filter list.
+
+## [0.1.3] - 2026-02-04
+
+### Added
+- Stateless views can now handle events synchronously (no GenServer required).
+- New `event/2` macro replaces `post/2` and `get/2` for triggering server events.
+- `event_path` assign is now set for all views (live and stateless).
+- CSRF token is now read from meta tag automatically (no signal setup required).
+
+### Changed
+- **Breaking**: Removed `datastar_events()` macro - all event routes are now per-page.
+- **Breaking**: Replaced `post/2` and `get/2` macros with single `event/2` macro.
+- **Breaking**: Event route path changed from `/path/event/:event` to `/path/_event/:event`.
+- Simplified routing - `datastar/3` macro now generates event routes for all views.
+- Installer no longer adds `datastar_events()` to router.
+
+### Fixed
+- Root path "/" now generates correct URLs (was creating double slashes like `//_event`).
 
 ### Removed
-- Removed dead `:datastar_update` code path from SSE loop
-- Removed unnecessary `id` attribute from DatastarHTML wrapper (was only used by dead code)
+- Removed dead `:datastar_update` code path from SSE loop.
+- Removed unnecessary `id` attribute from DatastarHTML wrapper (was only used by dead code).
 
 ## [0.1.2] - 2026-02-01
 
