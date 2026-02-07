@@ -8,6 +8,7 @@
 - **Auto-injected initial signals**: Assigns set in `mount/3` are now automatically initialized as Datastar signals on the wrapper element. No more manually adding `data-signals={Jason.encode!(%{count: @count})}` in your `render/1` — just `assign(socket, :count, 0)` in `mount/3` and use `$count` in your template.
 - `@initial_signals` assign is now available in custom HTML modules (see `DefaultHTML` docs).
 - New tests for initial signal injection and internal assign filtering.
+- bump
 
 ### Fixed
 - `event_path` was leaking as a user signal — added it to `internal_assigns` filter list.
