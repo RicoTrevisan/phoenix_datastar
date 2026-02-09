@@ -149,10 +149,13 @@ defmodule PhoenixDatastar.Server do
     session = Keyword.get(opts, :session, %{})
     base_path = Keyword.get(opts, :base_path, "")
 
+    flash = Map.get(session, "flash", %{})
+
     socket = %Socket{
       id: session_id,
       view: view,
       assigns: %{
+        flash: flash,
         session_id: session_id,
         base_path: base_path,
         stream_path: Path.join(base_path, "stream"),

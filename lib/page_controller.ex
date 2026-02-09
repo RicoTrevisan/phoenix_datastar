@@ -57,10 +57,13 @@ defmodule PhoenixDatastar.PageController do
         {inner_html, stream_path, initial_signals}
       else
         # Stateless: Render directly without GenServer
+        flash = conn.assigns[:flash] || %{}
+
         socket = %PhoenixDatastar.Socket{
           id: session_id,
           view: view,
           assigns: %{
+            flash: flash,
             session_id: session_id,
             base_path: path,
             stream_path: nil,

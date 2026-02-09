@@ -17,12 +17,15 @@ defmodule PhoenixDatastar.Helpers do
         %{}
       end
 
-    # Include current_user from conn assigns if available
-    if conn.assigns[:current_user] do
-      Map.put(session, "current_user", conn.assigns[:current_user])
-    else
-      session
-    end
+    # Include current_user and flash from conn assigns if available
+    session =
+      if conn.assigns[:current_user] do
+        Map.put(session, "current_user", conn.assigns[:current_user])
+      else
+        session
+      end
+
+    Map.put(session, "flash", conn.assigns[:flash] || %{})
   end
 
   @doc """
@@ -50,7 +53,7 @@ defmodule PhoenixDatastar.Helpers do
   Internal assigns that should be filtered from signals.
   """
   @spec internal_assigns() :: [atom()]
-  def internal_assigns, do: [:session_id, :base_path, :stream_path, :event_path]
+  def internal_assigns, do: [:session_id, :base_path, :stream_path, :event_path, :flash]
 
   @doc """
   Filters internal assigns from a map, returning only user-defined signals.
