@@ -1,7 +1,7 @@
 defmodule PhoenixDatastar.MixProject do
   use Mix.Project
 
-  @version "0.1.7"
+  @version "0.1.8"
   @source_url "https://github.com/RicoTrevisan/phoenix_datastar"
 
   def project do
@@ -46,7 +46,7 @@ defmodule PhoenixDatastar.MixProject do
       links: %{
         "GitHub" => @source_url
       },
-      files: ~w(lib .formatter.exs mix.exs README.md LICENSE),
+      files: ~w(lib .formatter.exs mix.exs README.md LICENSE usage-rules.md),
       keywords: ["phoenix", "datastar", "sse", "hypermedia", "htmx"]
     ]
   end

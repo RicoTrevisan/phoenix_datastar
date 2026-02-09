@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.8] - 2026-02-09
+
+### Added
+- **Usage rules**: Added `usage-rules.md` for AI agent integration via the `usage_rules` package.
+
 ## [0.1.6] - 2026-02-09
 
 ### Changed
