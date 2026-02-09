@@ -53,18 +53,11 @@ defmodule PhoenixDatastar.Router do
     quote bind_quoted: [path: path, view: view, opts: opts] do
       html_module = Keyword.get(opts, :html_module)
 
-      # Apply scope alias only if view isn't already fully qualified.
-      # Module atoms like CounterSse become "Elixir.CounterSse" (1 dot),
-      # while LiveStarTestWeb.CounterSse becomes "Elixir.LiveStarTestWeb.CounterSse" (2+ dots).
-      # Only apply scoped_alias to single-segment module names.
-      view =
-        case view |> Atom.to_string() |> String.split(".") do
-          ["Elixir", _single_segment] ->
-            Phoenix.Router.scoped_alias(__MODULE__, view)
-
-          _already_qualified ->
-            view
-        end
+      # Apply scope alias to the view module, matching Phoenix convention for
+      # controllers. Inside `scope "/", MyAppWeb`, module names like `CounterSse`
+      # or `Home.DashboardSse` are relative and get prefixed with the scope alias.
+      # If no scope alias is set, this is a no-op.
+      view = Phoenix.Router.scoped_alias(__MODULE__, view)
 
       # Get full path including scope prefix (e.g., "/" in scope "/sse" becomes "/sse")
       full_path = Phoenix.Router.scoped_path(__MODULE__, path)

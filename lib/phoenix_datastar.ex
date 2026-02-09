@@ -91,6 +91,8 @@ defmodule PhoenixDatastar do
   """
   @spec live?(module()) :: boolean()
   def live?(module) do
+    Code.ensure_compiled!(module)
+
     case module.__info__(:attributes)[:datastar_live] do
       [true] -> true
       _ -> false

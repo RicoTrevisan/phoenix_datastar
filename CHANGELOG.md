@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.6] - 2026-02-09
+
+### Changed
+- **Simplified scoped alias resolution**: `datastar/3` now always delegates to `Phoenix.Router.scoped_alias/2`, matching Phoenix's own convention for controllers. Previously, single-segment vs multi-segment module names were special-cased; now all view modules are treated uniformly. Fully-qualified modules still work as before.
+
+### Fixed
+- `live?/1` now calls `Code.ensure_compiled!/1` before inspecting module attributes, preventing false negatives when the module hasn't been loaded yet.
+- Removed stray "bump" entry from 0.1.5 changelog.
+- Updated LICENSE copyright year to 2026.
+
 ## [0.1.5] - 2026-02-07
 
 ### Added
@@ -8,7 +18,6 @@
 - **Auto-injected initial signals**: Assigns set in `mount/3` are now automatically initialized as Datastar signals on the wrapper element. No more manually adding `data-signals={Jason.encode!(%{count: @count})}` in your `render/1` — just `assign(socket, :count, 0)` in `mount/3` and use `$count` in your template.
 - `@initial_signals` assign is now available in custom HTML modules (see `DefaultHTML` docs).
 - New tests for initial signal injection and internal assign filtering.
-- bump
 
 ### Fixed
 - `event_path` was leaking as a user signal — added it to `internal_assigns` filter list.
