@@ -1,9 +1,9 @@
-> This is still in alpha, I'm figuring out the right apis.
-> Comments and ideas welcome.
-
 # PhoenixDatastar
 
 **A LiveView-like experience for Phoenix using Datastar's SSE + Signals architecture.**
+
+> This is still in alpha, I'm figuring out the right apis.
+> Comments and ideas welcome.
 
 Build interactive Phoenix applications with [Datastar](https://data-star.dev/)'s simplicity: SSE instead of WebSockets, hypermedia over JSON, and a focus on performance.
 
