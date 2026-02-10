@@ -59,6 +59,11 @@ defmodule PhoenixDatastar.Router do
       # If no scope alias is set, this is a no-op.
       view = Phoenix.Router.scoped_alias(__MODULE__, view)
 
+      # Track the view's source file so Mix recompiles the router when the view changes.
+      # This ensures the `PhoenixDatastar.live?/1` check below stays in sync.
+      Code.ensure_compiled!(view)
+      @external_resource view.__info__(:compile)[:source] |> List.to_string()
+
       # Get full path including scope prefix (e.g., "/" in scope "/sse" becomes "/sse")
       full_path = Phoenix.Router.scoped_path(__MODULE__, path)
 
