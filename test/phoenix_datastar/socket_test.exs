@@ -65,8 +65,8 @@ defmodule PhoenixDatastar.SocketTest do
           {:safe, "<span>#{assigns.count}</span>"}
         end)
 
-      assert length(socket.patches) == 1
-      [{selector, html}] = socket.patches
+      assert length(socket.events) == 1
+      [{:patch, selector, html}] = socket.events
       assert selector == "#count"
       assert html == "<span>5</span>"
     end
@@ -75,8 +75,8 @@ defmodule PhoenixDatastar.SocketTest do
       socket = %Socket{view: TestView}
       socket = Socket.patch_elements(socket, "#target", {:safe, "<div>content</div>"})
 
-      assert length(socket.patches) == 1
-      [{selector, html}] = socket.patches
+      assert length(socket.events) == 1
+      [{:patch, selector, html}] = socket.events
       assert selector == "#target"
       assert html == "<div>content</div>"
     end
@@ -89,7 +89,7 @@ defmodule PhoenixDatastar.SocketTest do
         |> Socket.patch_elements("#a", {:safe, "<span>a</span>"})
         |> Socket.patch_elements("#b", {:safe, "<span>b</span>"})
 
-      assert length(socket.patches) == 2
+      assert length(socket.events) == 2
     end
   end
 end

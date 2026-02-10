@@ -153,8 +153,7 @@ defmodule PhoenixDatastar.Plug do
           },
           signal_assigns
         ),
-      patches: [],
-      scripts: []
+      events: []
     }
 
     try do
@@ -191,32 +190,30 @@ defmodule PhoenixDatastar.Plug do
         events
       end
 
-    # Add element patches
+    # Add element patches and scripts in order
     events =
-      Enum.reduce(socket.patches, events, fn {selector, html}, acc ->
-        acc ++
-          [
-            SSE.format_event("datastar-patch-elements", [
-              "selector #{selector}",
-              "mode outer",
-              "elements #{html}"
-            ])
-          ]
-      end)
+      Enum.reduce(socket.events, events, fn
+        {:patch, selector, html}, acc ->
+          acc ++
+            [
+              SSE.format_event("datastar-patch-elements", [
+                "selector #{selector}",
+                "mode outer",
+                "elements #{html}"
+              ])
+            ]
 
-    # Add scripts
-    events =
-      Enum.reduce(socket.scripts, events, fn {script, _opts}, acc ->
-        script_html = "<script>#{script}</script>"
+        {:script, script, _opts}, acc ->
+          script_html = "<script>#{script}</script>"
 
-        acc ++
-          [
-            SSE.format_event("datastar-patch-elements", [
-              "selector body",
-              "mode append",
-              "elements #{script_html}"
-            ])
-          ]
+          acc ++
+            [
+              SSE.format_event("datastar-patch-elements", [
+                "selector body",
+                "mode append",
+                "elements #{script_html}"
+              ])
+            ]
       end)
 
     Enum.join(events, "")

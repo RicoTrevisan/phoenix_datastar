@@ -1,21 +1,24 @@
 defmodule PhoenixDatastar.Socket do
   @moduledoc """
   Socket struct for PhoenixDatastar, similar to Phoenix.LiveView.Socket.
-  Holds the view module, session id, assigns, private data, queued patches, and queued scripts.
+  Holds the view module, session id, assigns, private data, and queued events.
   """
 
   alias PhoenixDatastar.Helpers.JS
 
   @enforce_keys [:view]
-  defstruct [:id, :view, assigns: %{}, private: %{}, patches: [], scripts: []]
+  defstruct [:id, :view, assigns: %{}, private: %{}, events: []]
+
+  @type event ::
+          {:patch, String.t(), String.t()}
+          | {:script, String.t(), keyword()}
 
   @type t :: %__MODULE__{
           id: String.t() | nil,
           view: module(),
           assigns: map(),
           private: map(),
-          patches: list({String.t(), String.t()}),
-          scripts: list({String.t(), keyword()})
+          events: list(event())
         }
 
   @doc """
@@ -106,7 +109,7 @@ defmodule PhoenixDatastar.Socket do
       |> IO.iodata_to_binary()
       |> maybe_strip_debug_annotations()
 
-    %{socket | patches: socket.patches ++ [{selector, html_binary}]}
+    %{socket | events: socket.events ++ [{:patch, selector, html_binary}]}
   end
 
   @doc """
@@ -132,7 +135,7 @@ defmodule PhoenixDatastar.Socket do
   """
   @spec execute_script(t(), String.t(), keyword()) :: t()
   def execute_script(socket, script, opts \\ []) when is_binary(script) do
-    %{socket | scripts: socket.scripts ++ [{script, opts}]}
+    %{socket | events: socket.events ++ [{:script, script, opts}]}
   end
 
   @doc """

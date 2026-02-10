@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.9] - 2026-02-10
+
+### Changed
+- **Unified events list**: Merged `patches` and `scripts` socket fields into a single `events` list using tagged tuples (`{:patch, selector, html}` and `{:script, script, opts}`). This preserves the user's intended ordering of operations — previously patches were always sent before scripts regardless of queuing order. The public API (`patch_elements/3`, `execute_script/3`, etc.) is unchanged.
+
 ## [0.1.8] - 2026-02-09
 
 ### Added

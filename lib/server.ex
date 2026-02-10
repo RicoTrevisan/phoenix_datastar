@@ -93,27 +93,21 @@ defmodule PhoenixDatastar.Server do
   @spec enter_loop(PhoenixDatastar.SSE.t(), String.t()) :: PhoenixDatastar.SSE.t()
   def enter_loop(sse, session_id) do
     receive do
-      {:datastar_patches, patches} ->
-        Logger.debug("SSE #{length(patches)} patch(es)")
-
-        sse =
-          Enum.reduce(patches, sse, fn {selector, html}, sse ->
-            Elements.patch(sse, html, selector: selector)
-          end)
-
-        enter_loop(sse, session_id)
-
       {:datastar_signals, signals} ->
         Logger.debug("SSE signals: #{inspect(signals)}")
         sse = Signals.patch(sse, signals)
         enter_loop(sse, session_id)
 
-      {:datastar_scripts, scripts} ->
-        Logger.debug("SSE #{length(scripts)} script(s)")
+      {:datastar_events, events} ->
+        Logger.debug("SSE #{length(events)} event(s)")
 
         sse =
-          Enum.reduce(scripts, sse, fn {script, opts}, sse ->
-            Scripts.execute(sse, script, opts)
+          Enum.reduce(events, sse, fn
+            {:patch, selector, html}, sse ->
+              Elements.patch(sse, html, selector: selector)
+
+            {:script, script, opts}, sse ->
+              Scripts.execute(sse, script, opts)
           end)
 
         enter_loop(sse, session_id)
@@ -193,8 +187,8 @@ defmodule PhoenixDatastar.Server do
     case view.handle_event(evt, payload, socket) do
       {:noreply, new_socket} ->
         send_update(subscriber, new_socket)
-        # Clear patches and scripts after sending
-        {:noreply, %{state | socket: %{new_socket | patches: [], scripts: []}}}
+        # Clear events after sending
+        {:noreply, %{state | socket: %{new_socket | events: []}}}
 
       {:stop, new_socket} ->
         if subscriber do
@@ -236,8 +230,8 @@ defmodule PhoenixDatastar.Server do
             send_update(subscriber, new_socket)
           end
 
-          # Clear patches and scripts after sending
-          {:noreply, %{state | socket: %{new_socket | patches: [], scripts: []}}}
+          # Clear events after sending
+          {:noreply, %{state | socket: %{new_socket | events: []}}}
 
         _ ->
           {:noreply, state}
@@ -264,14 +258,9 @@ defmodule PhoenixDatastar.Server do
       send(subscriber, {:datastar_signals, signals})
     end
 
-    # Send patches if any exist
-    if socket.patches != [] do
-      send(subscriber, {:datastar_patches, socket.patches})
-    end
-
-    # Send scripts if any exist
-    if socket.scripts != [] do
-      send(subscriber, {:datastar_scripts, socket.scripts})
+    # Send events (patches and scripts) if any exist
+    if socket.events != [] do
+      send(subscriber, {:datastar_events, socket.events})
     end
   end
 
