@@ -129,30 +129,21 @@ defmodule PhoenixDatastar.Plug do
 
   # Handle stateless view events synchronously
   defp handle_stateless_event(conn, view, session_id, event) do
-    signals = PhoenixDatastar.Signals.read(conn)
     base_path = conn.assigns[:base_path] || get_base_path(conn.request_path)
 
-    # Convert string keys to atoms for assigns compatibility
-    signal_assigns =
-      signals
-      |> Enum.reject(fn {k, _} -> k == "session_id" end)
-      |> Enum.map(fn {k, v} -> {String.to_atom(k), v} end)
-      |> Map.new()
-
-    # Create socket from signals (no mount call - state comes from client)
+    # Create socket with empty signals — client signals arrive in the payload
+    # (conn.params), not on the socket. The dev reads what they need from
+    # the payload argument of handle_event/3.
     socket = %PhoenixDatastar.Socket{
       id: session_id,
       view: view,
-      assigns:
-        Map.merge(
-          %{
-            session_id: session_id,
-            base_path: base_path,
-            stream_path: nil,
-            event_path: Path.join(base_path, "_event")
-          },
-          signal_assigns
-        ),
+      assigns: %{
+        session_id: session_id,
+        base_path: base_path,
+        stream_path: nil,
+        event_path: Path.join(base_path, "_event")
+      },
+      signals: %{},
       events: []
     }
 
@@ -175,17 +166,15 @@ defmodule PhoenixDatastar.Plug do
     end
   end
 
-  # Build SSE response body from socket patches, signals, and scripts
+  # Build SSE response body from socket signals, patches, and scripts
   defp build_sse_response(socket) do
     events = []
 
-    # Add signal patches (only user signals, excluding system assigns)
-    user_signals = Helpers.user_signals(socket.assigns)
-
+    # Add signal patches (only signals explicitly set by the dev via put_signal)
     events =
-      if map_size(user_signals) > 0 do
+      if map_size(socket.signals) > 0 do
         events ++
-          [SSE.format_event("datastar-patch-signals", ["signals #{Jason.encode!(user_signals)}"])]
+          [SSE.format_event("datastar-patch-signals", ["signals #{Jason.encode!(socket.signals)}"])]
       else
         events
       end

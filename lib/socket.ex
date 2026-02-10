@@ -1,13 +1,23 @@
 defmodule PhoenixDatastar.Socket do
   @moduledoc """
   Socket struct for PhoenixDatastar, similar to Phoenix.LiveView.Socket.
-  Holds the view module, session id, assigns, private data, and queued events.
+  Holds the view module, session id, assigns, signals, private data, and queued events.
+
+  ## Assigns vs Signals
+
+  - **Assigns** are server-side state, never sent to the client. Use `assign/2,3` and
+    `update/3` to work with assigns. They are available in templates as `@key`.
+
+  - **Signals** are Datastar reactive state sent to the client via SSE. Use `put_signal/2,3`
+    and `update_signal/3` to work with signals. They must be JSON-serializable. The client
+    accesses them via Datastar expressions like `$count`. Signals are **not** available
+    as `@key` in templates — Datastar handles their rendering client-side.
   """
 
   alias PhoenixDatastar.Helpers.JS
 
   @enforce_keys [:view]
-  defstruct [:id, :view, assigns: %{}, private: %{}, events: []]
+  defstruct [:id, :view, assigns: %{}, signals: %{}, private: %{}, events: []]
 
   @type event ::
           {:patch, String.t(), String.t()}
@@ -17,16 +27,20 @@ defmodule PhoenixDatastar.Socket do
           id: String.t() | nil,
           view: module(),
           assigns: map(),
+          signals: map(),
           private: map(),
           events: list(event())
         }
 
   @doc """
-  Assigns a single key-value pair to the socket.
+  Assigns a single key-value pair to the socket's server-side assigns.
+
+  Assigns are never sent to the client. Use `put_signal/3` for client-side
+  Datastar signals.
 
   ## Examples
 
-      assign(socket, :count, 0)
+      assign(socket, :user, %User{name: "Alice"})
   """
   @spec assign(t(), atom(), any()) :: t()
   def assign(socket, key, value) when is_atom(key) do
@@ -38,8 +52,8 @@ defmodule PhoenixDatastar.Socket do
 
   ## Examples
 
-      assign(socket, %{count: 0, name: "test"})
-      assign(socket, count: 0, name: "test")
+      assign(socket, %{user: user, settings: settings})
+      assign(socket, user: user, settings: settings)
   """
   @spec assign(t(), map() | keyword()) :: t()
   def assign(socket, new_assigns) when is_map(new_assigns) do
@@ -55,12 +69,57 @@ defmodule PhoenixDatastar.Socket do
 
   ## Examples
 
-      update(socket, :count, &(&1 + 1))
+      update(socket, :user, &User.increment_visits/1)
   """
   @spec update(t(), atom(), (any() -> any())) :: t()
   def update(socket, key, fun) when is_atom(key) and is_function(fun, 1) do
     current = Map.get(socket.assigns, key)
     assign(socket, key, fun.(current))
+  end
+
+  @doc """
+  Puts a single Datastar signal on the socket.
+
+  Signals are sent to the client and must be JSON-serializable.
+  They are accessed client-side via Datastar expressions (e.g., `$count`).
+
+  ## Examples
+
+      put_signal(socket, :count, 0)
+  """
+  @spec put_signal(t(), atom(), any()) :: t()
+  def put_signal(socket, key, value) when is_atom(key) do
+    %{socket | signals: Map.put(socket.signals, key, value)}
+  end
+
+  @doc """
+  Merges signals into the socket from a map or keyword list.
+
+  ## Examples
+
+      put_signal(socket, %{count: 0, name: "test"})
+      put_signal(socket, count: 0, name: "test")
+  """
+  @spec put_signal(t(), map() | keyword()) :: t()
+  def put_signal(socket, new_signals) when is_map(new_signals) do
+    %{socket | signals: Map.merge(socket.signals, new_signals)}
+  end
+
+  def put_signal(socket, new_signals) when is_list(new_signals) do
+    %{socket | signals: Map.merge(socket.signals, Map.new(new_signals))}
+  end
+
+  @doc """
+  Updates a signal using a function.
+
+  ## Examples
+
+      update_signal(socket, :count, &(&1 + 1))
+  """
+  @spec update_signal(t(), atom(), (any() -> any())) :: t()
+  def update_signal(socket, key, fun) when is_atom(key) and is_function(fun, 1) do
+    current = Map.get(socket.signals, key)
+    put_signal(socket, key, fun.(current))
   end
 
   @doc """
@@ -71,23 +130,26 @@ defmodule PhoenixDatastar.Socket do
   - A render function that takes assigns and returns HTML
   - Raw HTML content (must implement Phoenix.HTML.Safe)
 
+  The render function receives `socket.assigns` (server-side state only,
+  not signals).
+
   ## Examples
 
   With a render function (recommended for pipelines):
 
       socket
-      |> update(:count, &(&1 + 1))
-      |> patch_elements("#count", &render_count/1)
+      |> assign(:items, updated_items)
+      |> patch_elements("#items", &render_items/1)
       |> then(&{:noreply, &1})
 
-      defp render_count(assigns) do
-        ~H|<span id="count">{@count}</span>|
+      defp render_items(assigns) do
+        ~H|<ul id="items"><li :for={item <- @items}>{item}</li></ul>|
       end
 
   With raw HTML:
 
       socket
-      |> patch_elements("#count", ~H"<span id=\"count\">{@count}</span>")
+      |> patch_elements("#count", ~H"<span id=\"count\">42</span>")
 
   """
   @spec patch_elements(t(), String.t(), (map() -> Phoenix.HTML.Safe.t()) | Phoenix.HTML.Safe.t()) ::

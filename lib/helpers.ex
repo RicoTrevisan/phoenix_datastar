@@ -42,24 +42,10 @@ defmodule PhoenixDatastar.Helpers do
   end
 
   @doc """
-  Renders a view's template.
+  Renders a view's template with the socket's assigns.
   """
   @spec render_html(module(), PhoenixDatastar.Socket.t()) :: Phoenix.HTML.Safe.t()
   def render_html(view, socket) do
     view.render(socket.assigns)
-  end
-
-  @doc """
-  Internal assigns that should be filtered from signals.
-  """
-  @spec internal_assigns() :: [atom()]
-  def internal_assigns, do: [:session_id, :base_path, :stream_path, :event_path, :flash]
-
-  @doc """
-  Filters internal assigns from a map, returning only user-defined signals.
-  """
-  @spec user_signals(map()) :: map()
-  def user_signals(assigns) do
-    Map.drop(assigns, internal_assigns())
   end
 end

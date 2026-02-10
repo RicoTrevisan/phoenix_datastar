@@ -173,8 +173,7 @@ defmodule PhoenixDatastar.Server do
   @impl true
   def handle_call(:get_snapshot, _from, %{view: view, socket: socket} = state) do
     html = render_html(view, socket)
-    signals = Helpers.user_signals(socket.assigns)
-    {:reply, {:ok, html, signals}, state}
+    {:reply, {:ok, html, socket.signals}, state}
   end
 
   @impl true
@@ -251,11 +250,9 @@ defmodule PhoenixDatastar.Server do
   defp send_update(nil, _socket), do: :ok
 
   defp send_update(subscriber, socket) do
-    # Always send signals when assigns have changed
-    signals = Helpers.user_signals(socket.assigns)
-
-    if map_size(signals) > 0 do
-      send(subscriber, {:datastar_signals, signals})
+    # Send signals if any have been set
+    if map_size(socket.signals) > 0 do
+      send(subscriber, {:datastar_signals, socket.signals})
     end
 
     # Send events (patches and scripts) if any exist

@@ -78,8 +78,7 @@ defmodule PhoenixDatastar.PageController do
           end
 
         inner_html = Helpers.render_html(view, socket)
-        initial_signals = Helpers.user_signals(socket.assigns)
-        {inner_html, nil, initial_signals}
+        {inner_html, nil, socket.signals}
       end
 
     conn

@@ -2,6 +2,20 @@ defmodule PhoenixDatastar do
   @moduledoc """
   PhoenixDatastar view behaviour for building interactive web applications.
 
+  ## Assigns vs Signals
+
+  - **Assigns** (`assign/2,3`, `update/3`) are server-side state, never sent to the
+    client. They are available in templates as `@key`. Use them for structs, DB records,
+    or any data the server needs to remember.
+
+  - **Signals** (`put_signal/2,3`, `update_signal/3`) are Datastar reactive state sent
+    to the client via SSE. They must be JSON-serializable. The client accesses them via
+    Datastar expressions like `$count`. Signals are **not** available as `@key` in
+    templates — Datastar handles their rendering client-side.
+
+  Client signals arrive as the `payload` argument to `handle_event/3`. They are untrusted
+  input — read, validate, and explicitly `put_signal` what you want to send back.
+
   ## Usage
 
   For stateless views (no persistent connection):
@@ -11,14 +25,13 @@ defmodule PhoenixDatastar do
 
         @impl PhoenixDatastar
         def mount(_params, _session, socket) do
-          # Assigns are automatically initialized as Datastar signals
-          {:ok, assign(socket, :count, 0)}
+          {:ok, put_signal(socket, :count, 0)}
         end
 
         @impl PhoenixDatastar
         def handle_event("increment", payload, socket) do
-          count = payload["count"] || socket.assigns.count
-          {:noreply, assign(socket, :count, count + 1)}
+          count = payload["count"] || 0
+          {:noreply, put_signal(socket, :count, count + 1)}
         end
 
         @impl PhoenixDatastar

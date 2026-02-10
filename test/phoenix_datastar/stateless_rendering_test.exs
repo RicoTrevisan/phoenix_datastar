@@ -30,35 +30,51 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
     def render(assigns), do: ~H"Hello"
   end
 
-  defmodule StatelessViewWithEvent do
+  defmodule StatelessViewWithSignals do
     use PhoenixDatastar
 
     @impl PhoenixDatastar
     def mount(_params, _session, socket) do
-      {:ok, PhoenixDatastar.Socket.assign(socket, :count, 0)}
+      {:ok, put_signal(socket, :count, 0)}
     end
 
     @impl PhoenixDatastar
-    def handle_event("increment", _params, socket) do
-      new_count = socket.assigns.count + 1
-      socket = PhoenixDatastar.Socket.assign(socket, :count, new_count)
+    def handle_event("increment", params, socket) do
+      count = params["count"] || 0
+      new_count = count + 1
 
       socket =
-        PhoenixDatastar.Socket.patch_elements(
-          socket,
+        socket
+        |> put_signal(:count, new_count)
+        |> PhoenixDatastar.Socket.patch_elements(
           "#count",
-          &render_count/1
+          {:safe, "<span id=\"count\">#{new_count}</span>"}
         )
 
       {:noreply, socket}
     end
 
-    defp render_count(assigns) do
-      ~H|<span id="count"><%= @count %></span>|
+    @impl PhoenixDatastar
+    def render(assigns), do: ~H|<span id="count" data-text="$count"></span>|
+  end
+
+  defmodule StatelessViewWithAssigns do
+    @moduledoc """
+    A view that uses both assigns (server-side) and signals (client-side).
+    Demonstrates that assigns are not sent as signals.
+    """
+    use PhoenixDatastar
+
+    @impl PhoenixDatastar
+    def mount(_params, _session, socket) do
+      {:ok,
+       socket
+       |> Socket.assign(:user, %{name: "Alice", role: :admin})
+       |> put_signal(:count, 0)}
     end
 
     @impl PhoenixDatastar
-    def render(assigns), do: ~H|<span id="count"><%= @count %></span>|
+    def render(assigns), do: ~H|<div>Welcome {@user.name}</div>|
   end
 
   setup do
@@ -79,7 +95,6 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
 
     conn = PhoenixDatastar.PageController.mount(conn, %{})
 
-    # Check rendered HTML
     # If stateless, stream_path should be nil or empty.
     refute html_response(conn, 200) =~ "Stream: /test/stream"
   end
@@ -97,7 +112,6 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
 
     conn = PhoenixDatastar.PageController.mount(conn, %{})
 
-    # Check that event_path is set for stateless views
     assert html_response(conn, 200) =~ "Event: /test/_event"
   end
 
@@ -121,43 +135,40 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
     refute response =~ "Event: //_event"
   end
 
-  test "stateless view handles events and returns SSE response" do
-    # Simulate a POST to /test/_event/increment
+  test "stateless view handles events and returns SSE response with signals and patches" do
     conn =
       Phoenix.ConnTest.build_conn(:post, "/test/_event/increment", %{
         "event" => "increment",
-        "session_id" => "test-session-123"
+        "session_id" => "test-session-123",
+        "count" => 5
       })
 
-    # Add signals via body (simulating Datastar sending signals)
     conn = Map.put(conn, :body_params, %{"count" => 5, "session_id" => "test-session-123"})
     conn = Plug.Conn.assign(conn, :base_path, "/test")
 
-    # Call the plug directly with the view
-    conn = PhoenixDatastar.Plug.call(conn, view: StatelessViewWithEvent)
+    conn = PhoenixDatastar.Plug.call(conn, view: StatelessViewWithSignals)
 
-    # Check response
     assert conn.status == 200
     assert get_resp_header(conn, "content-type") == ["text/event-stream; charset=utf-8"]
 
-    # Check that response contains SSE-formatted patches
     body = conn.resp_body
     assert body =~ "event: datastar-patch-elements"
     assert body =~ "selector #count"
     assert body =~ "<span id=\"count\">6</span>"
   end
 
-  test "stateless view returns signal updates" do
+  test "stateless view returns signal updates via put_signal" do
     conn =
       Phoenix.ConnTest.build_conn(:post, "/test/_event/increment", %{
         "event" => "increment",
-        "session_id" => "test-session-123"
+        "session_id" => "test-session-123",
+        "count" => 10
       })
 
     conn = Map.put(conn, :body_params, %{"count" => 10, "session_id" => "test-session-123"})
     conn = Plug.Conn.assign(conn, :base_path, "/test")
 
-    conn = PhoenixDatastar.Plug.call(conn, view: StatelessViewWithEvent)
+    conn = PhoenixDatastar.Plug.call(conn, view: StatelessViewWithSignals)
 
     body = conn.resp_body
 
@@ -172,7 +183,7 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
 
     conn =
       Plug.Conn.put_private(conn, :datastar, %{
-        view: StatelessViewWithEvent,
+        view: StatelessViewWithSignals,
         path: "/test",
         html_module: TestHTMLWithSignals
       })
@@ -181,18 +192,38 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
 
     response = html_response(conn, 200)
 
-    # The mount assigns count: 0, so it should appear in initial_signals
-    # HTML entities are encoded in the response, so quotes become &quot;
+    # The mount puts signal count: 0, so it should appear in initial_signals
     assert response =~ "count" and response =~ ":0"
   end
 
-  test "initial signals exclude internal assigns" do
+  test "assigns are not included in initial signals" do
     conn = Phoenix.ConnTest.build_conn()
     conn = Map.put(conn, :params, %{"_format" => "html"})
 
     conn =
       Plug.Conn.put_private(conn, :datastar, %{
-        view: StatelessViewWithEvent,
+        view: StatelessViewWithAssigns,
+        path: "/test",
+        html_module: TestHTMLWithSignals
+      })
+
+    conn = PhoenixDatastar.PageController.mount(conn, %{})
+
+    response = html_response(conn, 200)
+
+    # Signals should contain count but NOT user (which is an assign)
+    assert response =~ "count"
+    refute response =~ "Alice"
+    refute response =~ "user"
+  end
+
+  test "internal assigns are not included in initial signals" do
+    conn = Phoenix.ConnTest.build_conn()
+    conn = Map.put(conn, :params, %{"_format" => "html"})
+
+    conn =
+      Plug.Conn.put_private(conn, :datastar, %{
+        view: StatelessViewWithSignals,
         path: "/test",
         html_module: TestHTMLWithSignals
       })
@@ -214,7 +245,7 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
 
     conn =
       Plug.Conn.put_private(conn, :datastar, %{
-        view: StatelessViewWithEvent,
+        view: StatelessViewWithSignals,
         path: "/test",
         html_module: nil
       })
@@ -223,9 +254,25 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
 
     response = html_response(conn, 200)
 
-    # DefaultHTML should render data-signals with both session_id and user assigns
+    # DefaultHTML should render data-signals with session_id and user signals
     assert response =~ "data-signals="
     assert response =~ "session_id"
     assert response =~ "count"
+  end
+
+  test "assigns with structs do not cause serialization errors" do
+    conn = Phoenix.ConnTest.build_conn()
+    conn = Map.put(conn, :params, %{"_format" => "html"})
+
+    conn =
+      Plug.Conn.put_private(conn, :datastar, %{
+        view: StatelessViewWithAssigns,
+        path: "/test",
+        html_module: TestHTMLWithSignals
+      })
+
+    # This should not raise — the struct is in assigns, not signals
+    conn = PhoenixDatastar.PageController.mount(conn, %{})
+    assert conn.status == 200
   end
 end
