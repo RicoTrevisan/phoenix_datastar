@@ -74,6 +74,20 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
     end
 
     @impl PhoenixDatastar
+    def handle_event("greet", _params, socket) do
+      # Assigns from mount should be available here
+      name = socket.assigns.user.name
+
+      {:noreply,
+       socket
+       |> put_signal(:greeting, "Hello #{name}!")
+       |> PhoenixDatastar.Socket.patch_elements(
+         "#greeting",
+         {:safe, "<span id=\"greeting\">Hello #{name}!</span>"}
+       )}
+    end
+
+    @impl PhoenixDatastar
     def render(assigns), do: ~H|<div>Welcome {@user.name}</div>|
   end
 
@@ -258,6 +272,27 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
     assert response =~ "data-signals="
     assert response =~ "session_id"
     assert response =~ "count"
+  end
+
+  test "stateless handle_event has access to assigns from mount" do
+    conn =
+      Phoenix.ConnTest.build_conn(:post, "/test/_event/greet", %{
+        "event" => "greet",
+        "session_id" => "test-session-123"
+      })
+
+    conn = Map.put(conn, :body_params, %{"session_id" => "test-session-123"})
+    conn = Plug.Conn.assign(conn, :base_path, "/test")
+
+    conn = PhoenixDatastar.Plug.call(conn, view: StatelessViewWithAssigns)
+
+    assert conn.status == 200
+    body = conn.resp_body
+
+    # The handler reads socket.assigns.user.name from mount
+    assert body =~ "Hello Alice!"
+    assert body =~ "event: datastar-patch-elements"
+    assert body =~ "event: datastar-patch-signals"
   end
 
   test "assigns with structs do not cause serialization errors" do
