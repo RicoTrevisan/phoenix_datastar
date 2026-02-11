@@ -364,6 +364,33 @@ use MyAppWeb, :live_datastar
 - Persistent server-side state across interactions
 - `handle_info/2` callbacks
 
+## Tips
+
+### Showing Flash Messages
+
+Phoenix's built-in flash system (`put_flash/3`) doesn't work with PhoenixDatastar since there's no LiveView process managing flash state. Instead, use `assign` to set flash data and `patch_elements` to render the flash group component from your layout:
+
+```elixir
+def handle_event("save", _payload, socket) do
+  # ... save logic ...
+  socket = assign(socket, flash: %{"info" => "Saved successfully!"})
+  {:noreply, patch_elements(socket, "#flash-group", &render_flash_group/1)}
+end
+
+def handle_info(:show_flash, socket) do
+  socket = assign(socket, flash: %{"info" => "hello world"})
+  {:noreply, patch_elements(socket, "#flash-group", &render_flash_group/1)}
+end
+
+defp render_flash_group(assigns) do
+  ~H"""
+  <Layouts.flash_group flash={@flash} />
+  """
+end
+```
+
+Make sure your layout's flash group has the `#flash-group` ID so the patch selector can target it.
+
 ## Links
 
 - [Datastar](https://data-star.dev/) - The frontend library this integrates with
