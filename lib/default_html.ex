@@ -43,7 +43,7 @@ defmodule PhoenixDatastar.DefaultHTML do
 
     * `@session_id` - The unique session identifier
     * `@stream_path` - The SSE stream path (nil for stateless views)
-    * `@initial_signals` - Map of user-defined assigns from `mount/3` to initialize as Datastar signals
+    * `@initial_signals` - Map of signals set via `put_signal` in `mount/3`
     * `@inner_html` - The rendered view content
   """
   def mount(assigns) do

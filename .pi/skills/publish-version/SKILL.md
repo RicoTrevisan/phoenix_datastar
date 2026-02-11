@@ -24,7 +24,17 @@ Ask the user:
 
 Edit `mix.exs` — update the `@version` module attribute to the new version string.
 
-### 3. Update CHANGELOG.md
+### 3. Update README.md
+
+Edit `README.md` — update the version in the dependency snippet under "Manual Installation" to match. The line looks like:
+
+```elixir
+{:phoenix_datastar, "~> X.Y.Z"}
+```
+
+Replace the version with the new one (keep the `~>` prefix).
+
+### 4. Update CHANGELOG.md
 
 Add a new section at the top of the changelog (below the `# Changelog` header) with the format:
 
@@ -43,7 +53,7 @@ Add a new section at the top of the changelog (below the `# Changelog` header) w
 
 Use today's date. Only include sections (Added/Changed/Fixed/Removed) that apply.
 
-### 4. Generate Docs
+### 5. Generate Docs
 
 ```bash
 mix docs
@@ -51,26 +61,26 @@ mix docs
 
 Verify it succeeds without errors.
 
-### 5. Commit
+### 6. Commit
 
 ```bash
 git add -A
 git commit -m "v<VERSION>"
 ```
 
-### 6. Tag
+### 7. Tag
 
 ```bash
 git tag v<VERSION>
 ```
 
-### 7. Push
+### 8. Push
 
 ```bash
 git push && git push --tags
 ```
 
-### 8. Publish to Hex
+### 9. Publish to Hex
 
 ```bash
 mix hex.publish
@@ -78,7 +88,7 @@ mix hex.publish
 
 This will prompt for confirmation and a password — let the user handle the interactive prompts. Do NOT pass `--yes` or try to automate the confirmation.
 
-### 9. Verify
+### 10. Verify
 
 After publish completes, confirm success:
 

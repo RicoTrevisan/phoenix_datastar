@@ -1,9 +1,16 @@
 # Changelog
 
-## [0.1.9] - 2026-02-10
+## [0.1.9] - 2026-02-11
 
 ### Changed
-- **Unified events list**: Merged `patches` and `scripts` socket fields into a single `events` list using tagged tuples (`{:patch, selector, html}` and `{:script, script, opts}`). This preserves the user's intended ordering of operations — previously patches were always sent before scripts regardless of queuing order. The public API (`patch_elements/3`, `execute_script/3`, etc.) is unchanged.
+- **Assigns vs Signals separation**: Assigns (`assign/2,3`, `update/3`) are now server-side only and never sent to the client. Signals (`put_signal/2,3`, `update_signal/3`) are the explicit API for Datastar reactive state sent via SSE. Client signals arrive in the `handle_event/3` payload.
+- **Unified events list**: Merged `patches` and `scripts` socket fields into a single `events` list, preserving user-intended ordering.
+- **README overhaul**: Fully rewritten to document the assigns/signals separation, `put_signal`, `update_signal`, `execute_script`, `redirect`, `console_log`, and both rendering patterns (signals vs server-rendered patches).
+
+### Fixed
+- Stateless views now correctly re-run `mount/3` before `handle_event/3` so assigns are available.
+- Compiler now recompiles when a view module changes.
+- Fixed stale `@initial_signals` doc in `DefaultHTML`.
 
 ## [0.1.8] - 2026-02-09
 

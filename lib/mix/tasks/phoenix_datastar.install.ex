@@ -11,7 +11,7 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
   2. Enable stripping of debug annotations in dev (for SSE patches)
   3. Add `import PhoenixDatastar.Router` to your router
   4. Add `"sse"` to the browser pipeline's `:accepts` plug
-  5. Add `def live_sse` and `def datastar` to your web module
+  5. Add `def live_datastar` and `def datastar` to your web module
   6. Add the Datastar JavaScript to your root layout
   """
 
@@ -37,7 +37,7 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     |> configure_strip_debug_annotations()
     |> add_router_import()
     |> add_sse_to_browser_pipeline()
-    |> add_live_sse_to_web_module(web_module)
+    |> add_live_datastar_to_web_module(web_module)
     |> add_datastar_script_to_layout(web_module_path)
     |> add_manual_step_notices(web_module_path)
   end
@@ -98,9 +98,9 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     end
   end
 
-  defp add_live_sse_to_web_module(igniter, web_module) do
-    live_sse_code = """
-    def live_sse do
+  defp add_live_datastar_to_web_module(igniter, web_module) do
+    live_datastar_code = """
+    def live_datastar do
       quote do
         use PhoenixDatastar, :live
         import PhoenixDatastar.Actions
@@ -120,8 +120,8 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     """
 
     Igniter.Project.Module.find_and_update_module!(igniter, web_module, fn zipper ->
-      # Check if live_sse already exists
-      case Igniter.Code.Function.move_to_def(zipper, :live_sse, 0) do
+      # Check if live_datastar already exists
+      case Igniter.Code.Function.move_to_def(zipper, :live_datastar, 0) do
         {:ok, _} ->
           # Already exists
           {:ok, zipper}
@@ -130,17 +130,18 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
           # Find def live_view to add after it, using target: :at to get the def itself
           with {:ok, zipper} <-
                  Igniter.Code.Function.move_to_def(zipper, :live_view, 0, target: :at) do
-            {:ok, Igniter.Code.Common.add_code(zipper, live_sse_code, placement: :after)}
+            {:ok, Igniter.Code.Common.add_code(zipper, live_datastar_code, placement: :after)}
           else
             :error ->
               # Try to find def controller to add after
               case Igniter.Code.Function.move_to_def(zipper, :controller, 0, target: :at) do
                 {:ok, zipper} ->
-                  {:ok, Igniter.Code.Common.add_code(zipper, live_sse_code, placement: :after)}
+                  {:ok,
+                   Igniter.Code.Common.add_code(zipper, live_datastar_code, placement: :after)}
 
                 :error ->
                   {:warning,
-                   "Could not find a suitable location to add `def live_sse`. Please add it manually to your web module."}
+                   "Could not find a suitable location to add `def live_datastar`. Please add it manually to your web module."}
               end
           end
       end

@@ -22,7 +22,7 @@ This will automatically:
 - Enable stripping of debug annotations in dev
 - Add the Datastar JavaScript to your layout
 - Import the router macro
-- Add `live_sse` and `datastar` helpers to your web module
+- Add `live_datastar` and `datastar` helpers to your web module
 
 You'll then just need to add your routes (the installer will show you instructions).
 
@@ -33,7 +33,7 @@ Add `phoenix_datastar` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:phoenix_datastar, "~> 0.1.4"}
+    {:phoenix_datastar, "~> 0.1.9"}
   ]
 end
 ```
@@ -77,13 +77,13 @@ scope "/", MyAppWeb do
 end
 ```
 
-#### 4. Create `:live_sse` and `:datastar` in your `_web.ex`
+#### 4. Create `:live_datastar` and `:datastar` in your `_web.ex`
 
 ```ex
 defmodule MyAppWeb do
 #... existing calls
 
-  def live_sse do
+  def live_datastar do
     quote do
       use PhoenixDatastar, :live
       import PhoenixDatastar.Actions
@@ -119,7 +119,7 @@ PhoenixDatastar ships with a built-in mount template (`PhoenixDatastar.DefaultHT
 
 The default template automatically:
 - Injects `session_id` as a Datastar signal
-- Initializes all assigns from `mount/3` as Datastar signals (via `@initial_signals`)
+- Initializes all signals set via `put_signal` in `mount/3` as Datastar signals (via `@initial_signals`)
 - Sets up the SSE stream connection for live views
 
 If you need to customize it (e.g., add classes, extra attributes, or additional markup), create your own module:
@@ -145,7 +145,7 @@ end
 
 Available assigns in the mount template:
 - `@session_id` — unique session identifier
-- `@initial_signals` — map of user-defined assigns from `mount/3` (internal assigns like `base_path` are filtered out)
+- `@initial_signals` — map of signals set via `put_signal` in `mount/3`
 - `@stream_path` — SSE stream URL (nil for stateless views)
 - `@event_path` — event POST URL
 - `@inner_html` — the rendered view content
@@ -165,48 +165,95 @@ datastar "/custom", CustomStar, html_module: MyAppWeb.DatastarHTML
 
 ## Usage
 
-### Basic Example
+### Assigns vs Signals
+
+PhoenixDatastar separates server-side state from client-side reactive state:
+
+- **Assigns** (`assign/2,3`, `update/3`) are server-side state. They are available in templates as `@key` and are **never sent to the client**. Use them for structs, DB records, or any data the server needs to remember or render HTML with.
+
+- **Signals** (`put_signal/2,3`, `update_signal/3`) are Datastar reactive state sent to the client via SSE. They must be JSON-serializable. The client accesses them via Datastar expressions like `$count`. Signals are **not** available as `@key` in templates — Datastar handles their rendering client-side.
+
+Client signals arrive as the `payload` argument in `handle_event/3`. They are untrusted input — read, validate, and explicitly `put_signal` what you want to send back.
+
+### Basic Example: Signals
+
+The simplest pattern uses Datastar signals for all client state. The count lives entirely in signals — Datastar renders it client-side via `data-text="$count"`:
 
 ```elixir
 defmodule MyAppWeb.CounterStar do
-  use MyAppWeb, :live_sse
-  # if not present in `my_app_web.ex` file use
-  # `use PhoenixDatastar, :live`
+  use MyAppWeb, :datastar
+  # or: use PhoenixDatastar
 
   @impl PhoenixDatastar
   def mount(_params, _session, socket) do
-    # Assigns are automatically initialized as Datastar signals —
-    # no need to manually add data-signals in your template
-    {:ok, assign(socket, count: 0)}
+    {:ok, put_signal(socket, :count, 0)}
   end
 
   @impl PhoenixDatastar
-  def handle_event("increment", _payload, socket) do
-    {:noreply,
-     socket
-     |> update(:count, &(&1 + 1))
-     |> patch_elements("#count", &render_count/1)}
+  def handle_event("increment", payload, socket) do
+    count = payload["count"] || 0
+    {:noreply, put_signal(socket, :count, count + 1)}
   end
 
   @impl PhoenixDatastar
   def render(assigns) do
     ~H"""
     <div>
-      Count: <span id="count">{@count}</span>
+      Count: <span data-text="$count"></span>
       <button data-on:click={event("increment")}>+</button>
     </div>
     """
   end
+end
+```
 
-  defp render_count(assigns) do
-    ~H|<span id="count">{@count}</span>|
+### Server-Rendered Patches with Assigns
+
+For more complex rendering, use **assigns** for server-side state and **`patch_elements`** to push HTML updates. This is useful when you need HEEx templates, loops, or conditional logic that's easier to express server-side:
+
+```elixir
+defmodule MyAppWeb.ItemsStar do
+  use MyAppWeb, :live_datastar
+  # or: use PhoenixDatastar, :live
+
+  @impl PhoenixDatastar
+  def mount(_params, _session, socket) do
+    {:ok, assign(socket, items: ["Alpha", "Bravo"])}
+  end
+
+  @impl PhoenixDatastar
+  def handle_event("add", %{"name" => name}, socket) do
+    {:noreply,
+     socket
+     |> update(:items, &(&1 ++ [name]))
+     |> patch_elements("#items", &render_items/1)}
+  end
+
+  @impl PhoenixDatastar
+  def render(assigns) do
+    ~H"""
+    <div>
+      <ul id="items">
+        <li :for={item <- @items}>{item}</li>
+      </ul>
+      <button data-on:click={event("add", "name: $newItem")}>Add</button>
+    </div>
+    """
+  end
+
+  defp render_items(assigns) do
+    ~H"""
+    <ul id="items">
+      <li :for={item <- @items}>{item}</li>
+    </ul>
+    """
   end
 end
 ```
 
-> **Note:** In previous versions you had to manually declare Datastar signals in your template
-> with `data-signals={Jason.encode!(%{count: @count})}`. This is no longer needed — assigns
-> set in `mount/3` are automatically injected as signals by the wrapper template.
+> **Tip:** You can combine both patterns — use `put_signal` for simple reactive values
+> (toggles, counters, form inputs) and `assign` + `patch_elements` for complex
+> server-rendered sections.
 
 ## The Lifecycle
 
@@ -228,17 +275,49 @@ PhoenixDatastar uses a hybrid of request/response and streaming:
 
 ## Socket API
 
+### Assigns (server-side state)
+
 ```elixir
-# Assign values
-socket = assign(socket, :count, 0)
-socket = assign(socket, count: 0, name: "test")
+# Assign values (server-side only, available as @key in templates)
+socket = assign(socket, :user, current_user)
+socket = assign(socket, items: [], loading: true)
 
 # Update with a function
 socket = update(socket, :count, &(&1 + 1))
+```
 
+### Signals (client-side Datastar state)
+
+```elixir
+# Set signals (sent to client, accessed as $key in Datastar expressions)
+socket = put_signal(socket, :count, 0)
+socket = put_signal(socket, count: 0, name: "test")
+
+# Update a signal with a function
+socket = update_signal(socket, :count, &(&1 + 1))
+```
+
+### DOM Patches
+
+```elixir
 # Queue a DOM patch (sent via SSE)
 socket = patch_elements(socket, "#selector", &render_fn/1)
 socket = patch_elements(socket, "#selector", ~H|<span>html</span>|)
+```
+
+### Scripts and Navigation
+
+```elixir
+# Execute JavaScript on the client
+socket = execute_script(socket, "alert('Hello!')")
+socket = execute_script(socket, "console.log('debug')", auto_remove: false)
+
+# Redirect the client
+socket = redirect(socket, "/dashboard")
+
+# Log to the browser console
+socket = console_log(socket, "Debug message")
+socket = console_log(socket, "Warning!", level: :warn)
 ```
 
 ## Action Macros
@@ -274,11 +353,11 @@ use MyAppWeb, :datastar
 # or: use PhoenixDatastar
 
 # Live view - persistent SSE connection with GenServer state
-use MyAppWeb, :live_sse
+use MyAppWeb, :live_datastar
 # or: use PhoenixDatastar, :live
 ```
 
-**Stateless views** handle events synchronously - state is restored from client signals on each request, and the response is returned immediately. No GenServer or SSE connection is maintained.
+**Stateless views** handle events synchronously — state is restored by calling `mount/3` on each request, client signals arrive in the payload, and the response is returned immediately. No GenServer or SSE connection is maintained.
 
 **Live views** maintain a GenServer and SSE connection. Use `:live` when you need:
 - Real-time updates from the server (PubSub, timers)
