@@ -79,7 +79,7 @@ end
 
 #### 4. Create `:live_datastar` and `:datastar` in your `_web.ex`
 
-```ex
+```elixir
 defmodule MyAppWeb do
 #... existing calls
 
@@ -368,7 +368,3 @@ use MyAppWeb, :live_datastar
 
 - [Datastar](https://data-star.dev/) - The frontend library this integrates with
 - [Phoenix LiveView](https://hexdocs.pm/phoenix_live_view/) - The inspiration for the callback design
-
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
