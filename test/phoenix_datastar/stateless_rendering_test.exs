@@ -114,7 +114,7 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
   end
 
   test "stateless view should have event_path set" do
-    conn = Phoenix.ConnTest.build_conn()
+    conn = Phoenix.ConnTest.build_conn(:get, "/test")
     conn = Map.put(conn, :params, %{"_format" => "html"})
 
     conn =
