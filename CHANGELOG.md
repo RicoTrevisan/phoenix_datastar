@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.11] - 2026-02-12
+
+### Changed
+- Consolidated socket construction into `Socket.new/4`, eliminating duplication between `PageController` and `Server`.
+- Stringified `conn.assigns` keys in session map for consistent `mount/3` pattern matching with Plug session keys.
+
+### Fixed
+- Removed hardcoded "Datastar" from page title.
+
 ## [0.1.10] - 2026-02-12
 
 ### Fixed

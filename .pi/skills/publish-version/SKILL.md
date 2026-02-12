@@ -82,11 +82,15 @@ git push && git push --tags
 
 ### 9. Publish to Hex
 
+**Do not run `mix hex.publish` yourself.** It requires an interactive password prompt that cannot be handled by the agent.
+
+Instead, ask the user to run the following command in a separate terminal:
+
 ```bash
-mix hex.publish
+mix hex.publish --yes
 ```
 
-This will prompt for confirmation and a password — let the user handle the interactive prompts. Do NOT pass `--yes` or try to automate the confirmation.
+Then wait for the user to confirm that the publish completed successfully before proceeding to step 10.
 
 ### 10. Verify
 
