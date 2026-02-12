@@ -22,8 +22,9 @@ defmodule PhoenixDatastar.PageController do
 
   use Phoenix.Controller, formats: [:html]
 
-  alias PhoenixDatastar.Server
   alias PhoenixDatastar.Helpers
+  alias PhoenixDatastar.Server
+  alias PhoenixDatastar.Socket
 
   @doc """
   Mounts a Datastar view.
@@ -45,36 +46,24 @@ defmodule PhoenixDatastar.PageController do
 
     session_id = generate_session_id()
     session = Helpers.get_session_map(conn)
+    live? = PhoenixDatastar.live?(view)
 
-    # Event path is the same format for all views
-    # Use Path.join to handle root path "/" correctly (avoids "//")
-    event_path = Path.join(resolved_path, "_event")
-
-    {inner_html, stream_path, initial_signals} =
-      if PhoenixDatastar.live?(view) do
-        stream_path = Path.join(resolved_path, "stream")
+    {inner_html, initial_signals} =
+      if live? do
         # Start GenServer for this session
         {:ok, _pid} = Server.ensure_started(view, session_id, conn.params, session, resolved_path)
 
         # Get rendered HTML and initial signals from GenServer
         {:ok, inner_html, initial_signals} = Server.get_snapshot(session_id)
 
-        {inner_html, stream_path, initial_signals}
+        {inner_html, initial_signals}
       else
         # Stateless: Render directly without GenServer
-        flash = conn.assigns[:flash] || %{}
-
-        socket = %PhoenixDatastar.Socket{
-          id: session_id,
-          view: view,
-          assigns: %{
-            flash: flash,
-            session_id: session_id,
-            base_path: resolved_path,
-            stream_path: nil,
-            event_path: event_path
-          }
-        }
+        socket =
+          Socket.new(session_id, view, resolved_path,
+            live: false,
+            flash: Map.get(session, "flash", %{})
+          )
 
         socket =
           case view.mount(conn.params, session, socket) do
@@ -83,8 +72,11 @@ defmodule PhoenixDatastar.PageController do
           end
 
         inner_html = Helpers.render_html(view, socket)
-        {inner_html, nil, socket.signals}
+        {inner_html, socket.signals}
       end
+
+    stream_path = if live?, do: Path.join(resolved_path, "stream")
+    event_path = Path.join(resolved_path, "_event")
 
     conn
     |> put_view(html_module)

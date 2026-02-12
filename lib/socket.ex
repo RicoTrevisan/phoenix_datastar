@@ -19,6 +19,38 @@ defmodule PhoenixDatastar.Socket do
   @enforce_keys [:view]
   defstruct [:id, :view, assigns: %{}, signals: %{}, private: %{}, events: []]
 
+  @doc """
+  Creates a new socket with standard assigns.
+
+  ## Options
+
+    * `:live` - Whether this is a live (stateful) view. Defaults to `true`.
+      When `false`, `stream_path` is set to `nil`.
+    * `:flash` - Flash map. Defaults to `%{}`.
+
+  ## Examples
+
+      Socket.new(session_id, MyApp.CounterStar, "/counter")
+      Socket.new(session_id, MyApp.PageStar, "/about", live: false)
+  """
+  @spec new(String.t(), module(), String.t(), keyword()) :: t()
+  def new(session_id, view, base_path, opts \\ []) do
+    live? = Keyword.get(opts, :live, true)
+    flash = Keyword.get(opts, :flash, %{})
+
+    %__MODULE__{
+      id: session_id,
+      view: view,
+      assigns: %{
+        flash: flash,
+        session_id: session_id,
+        base_path: base_path,
+        stream_path: if(live?, do: Path.join(base_path, "stream")),
+        event_path: Path.join(base_path, "_event")
+      }
+    }
+  end
+
   @type event ::
           {:patch, String.t(), String.t()}
           | {:script, String.t(), keyword()}
