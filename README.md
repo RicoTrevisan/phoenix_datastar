@@ -33,7 +33,7 @@ Add `phoenix_datastar` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:phoenix_datastar, "~> 0.1.9"}
+    {:phoenix_datastar, "~> 0.1.10"}
   ]
 end
 ```

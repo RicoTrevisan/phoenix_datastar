@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.10] - 2026-02-12
+
+### Fixed
+- Fixed SSE stream and event URLs when using dynamic route segments (e.g., `/:workspace_slug`) by using `conn.request_path` instead of the compile-time route pattern.
+
 ## [0.1.9] - 2026-02-11
 
 ### Changed
