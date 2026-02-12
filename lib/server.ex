@@ -44,12 +44,16 @@ defmodule PhoenixDatastar.Server do
   @spec ensure_started(module(), String.t(), map(), map(), String.t()) ::
           {:ok, pid()} | {:error, term()}
   def ensure_started(view, session_id, params, session, base_path \\ "") do
-    case start_link(
-           view: view,
-           session_id: session_id,
-           params: params,
-           session: session,
-           base_path: base_path
+    case GenServer.start(
+           __MODULE__,
+           [
+             view: view,
+             session_id: session_id,
+             params: params,
+             session: session,
+             base_path: base_path
+           ],
+           name: Registry.via(session_id)
          ) do
       {:ok, pid} -> {:ok, pid}
       {:error, {:already_started, pid}} -> {:ok, pid}
@@ -213,11 +217,11 @@ defmodule PhoenixDatastar.Server do
     {:noreply, state}
   end
 
-  # Handle EXIT from linked processes (the Plug process that started us)
-  def handle_info({:EXIT, _pid, _reason}, %{view: view, socket: socket} = state) do
-    # Linked process exited - call terminate and stop
-    call_view_terminate(view, socket)
-    {:stop, :normal, state}
+  # Handle EXIT from linked processes (e.g., the PageController that started us).
+  # Don't stop — the SSE subscriber may connect later or already be connected.
+  # Cleanup happens when the subscriber's monitor fires (:DOWN).
+  def handle_info({:EXIT, _pid, _reason}, state) do
+    {:noreply, state}
   end
 
   def handle_info(msg, %{view: view, socket: socket, subscriber: subscriber} = state) do

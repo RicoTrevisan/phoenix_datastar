@@ -35,21 +35,26 @@ defmodule PhoenixDatastar.PageController do
   """
   @spec mount(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def mount(conn, _params) do
-    %{view: view, path: path} = conn.private.datastar
+    %{view: view} = conn.private.datastar
     html_module = get_html_module(conn)
+
+    # Use the actual request path (with resolved dynamic segments) instead of
+    # the compile-time route pattern (which may contain :param placeholders).
+    # e.g., "/acme-corporation" instead of "/:workspace_slug"
+    resolved_path = conn.request_path
 
     session_id = generate_session_id()
     session = Helpers.get_session_map(conn)
 
     # Event path is the same format for all views
     # Use Path.join to handle root path "/" correctly (avoids "//")
-    event_path = Path.join(path, "_event")
+    event_path = Path.join(resolved_path, "_event")
 
     {inner_html, stream_path, initial_signals} =
       if PhoenixDatastar.live?(view) do
-        stream_path = Path.join(path, "stream")
+        stream_path = Path.join(resolved_path, "stream")
         # Start GenServer for this session
-        {:ok, _pid} = Server.ensure_started(view, session_id, conn.params, session, path)
+        {:ok, _pid} = Server.ensure_started(view, session_id, conn.params, session, resolved_path)
 
         # Get rendered HTML and initial signals from GenServer
         {:ok, inner_html, initial_signals} = Server.get_snapshot(session_id)
@@ -65,7 +70,7 @@ defmodule PhoenixDatastar.PageController do
           assigns: %{
             flash: flash,
             session_id: session_id,
-            base_path: path,
+            base_path: resolved_path,
             stream_path: nil,
             event_path: event_path
           }
@@ -87,7 +92,7 @@ defmodule PhoenixDatastar.PageController do
       session_id: session_id,
       stream_path: stream_path,
       event_path: event_path,
-      base_path: path,
+      base_path: resolved_path,
       inner_html: inner_html,
       initial_signals: initial_signals,
       page_title: "#{Helpers.get_view_name(view)} - Datastar"
