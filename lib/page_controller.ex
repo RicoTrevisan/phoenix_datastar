@@ -95,7 +95,7 @@ defmodule PhoenixDatastar.PageController do
       base_path: resolved_path,
       inner_html: inner_html,
       initial_signals: initial_signals,
-      page_title: "#{Helpers.get_view_name(view)} - Datastar"
+      page_title: "#{Helpers.get_view_name(view)}"
     )
   end
 
