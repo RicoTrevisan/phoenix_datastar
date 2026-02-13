@@ -24,7 +24,7 @@ defmodule PhoenixDatastar.DefaultHTML do
           <div
             id="my-app"
             class="custom-wrapper"
-            data-signals={Jason.encode!(Map.put(@initial_signals, :session_id, @session_id))}
+            data-signals={Jason.encode!(Map.merge(@initial_signals, %{session_id: @session_id, event_path: @event_path}))}
             data-init__once={@stream_path && "@get('\#{@stream_path}', {openWhenHidden: true})"}
           >
             {@inner_html}
@@ -43,13 +43,14 @@ defmodule PhoenixDatastar.DefaultHTML do
 
     * `@session_id` - The unique session identifier
     * `@stream_path` - The SSE stream path (nil for stateless views)
+    * `@event_path` - The event POST path
     * `@initial_signals` - Map of signals set via `put_signal` in `mount/3`
     * `@inner_html` - The rendered view content
   """
   def mount(assigns) do
     ~H"""
     <div
-      data-signals={Jason.encode!(Map.put(@initial_signals, :session_id, @session_id))}
+      data-signals={Jason.encode!(Map.merge(@initial_signals, %{session_id: @session_id, event_path: @event_path}))}
       data-init__once={@stream_path && "@get('#{@stream_path}', {openWhenHidden: true})"}
     >
       {@inner_html}

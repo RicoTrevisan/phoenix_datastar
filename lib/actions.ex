@@ -1,22 +1,27 @@
 defmodule PhoenixDatastar.Actions do
   @moduledoc """
-  Provides macros for generating Datastar action expressions.
+  Provides functions for generating Datastar action expressions.
 
-  These macros generate Datastar-compatible action strings for use in
+  These functions generate Datastar-compatible action strings for use in
   `data-on:*` attributes in your templates.
+
+  The generated expressions reference `$session_id` and `$event_path` Datastar
+  signals, which are automatically initialized by `PhoenixDatastar.DefaultHTML`
+  (or your custom `html_module`). This means `event/1,2` works in any component
+  without needing to pass `session_id` or `event_path` through assigns.
 
   ## Requirements
 
-  - `assigns.session_id` must be set in your template context (automatically set by PhoenixDatastar)
-  - `assigns.event_path` must be set (automatically set by PhoenixDatastar)
-  - A `<meta name="csrf-token" content="...">` tag must be present in your layout (Phoenix includes this by default)
+  - A `<meta name="csrf-token" content="...">` tag must be present in your layout
+    (Phoenix includes this by default)
   """
 
   @doc """
   Generates a Datastar `@post` action expression for triggering server events.
 
-  The generated action will POST to `{event_path}/{event}` with the session ID
-  and CSRF token.
+  The generated expression references `$event_path` and `$session_id` signals,
+  which Datastar resolves client-side. This means it works in any component
+  regardless of nesting depth — no need to pass framework assigns through.
 
   ## Parameters
 
@@ -35,25 +40,24 @@ defmodule PhoenixDatastar.Actions do
       <button data-on:click={event("update", "value: $count")}>Update</button>
 
   """
-  defmacro event(event_name, opts \\ nil) do
-    quote do
-      PhoenixDatastar.Actions.build_event(
-        unquote(event_name),
-        var!(assigns).session_id,
-        var!(assigns).event_path,
-        unquote(opts)
-      )
-    end
+  def event(event_name, opts \\ nil) do
+    build_event(event_name, opts)
   end
 
   @doc false
-  def build_event(event_name, session_id, event_path, opts) do
-    path = "#{event_path}/#{event_name}"
+  def build_event(event_name, opts) do
+    path = "$event_path+'/#{event_name}'"
     headers = "headers: {'x-csrf-token': document.querySelector('meta[name=csrf-token]').content}"
-    session = "session_id: '#{session_id}'"
+    session = "session_id: $session_id"
 
     if opts,
-      do: "@post('#{path}', {#{session}, #{opts}, #{headers}})",
-      else: "@post('#{path}', {#{session}, #{headers}})"
+      do: "@post(#{path}, {#{session}, #{opts}, #{headers}})",
+      else: "@post(#{path}, {#{session}, #{headers}})"
+  end
+
+  @doc false
+  @deprecated "Use build_event/2 instead — session_id and event_path are now read from Datastar signals"
+  def build_event(event_name, _session_id, _event_path, opts) do
+    build_event(event_name, opts)
   end
 end

@@ -120,12 +120,12 @@ Generates a Datastar `@post(...)` expression for triggering server events:
 <button data-on:click={event("update", "value: $count")}>Update</button>
 ```
 
-Requires `assigns.session_id` and `assigns.event_path` (both set automatically). A `<meta name="csrf-token">` tag must exist in the layout (Phoenix default).
+Uses `$session_id` and `$event_path` Datastar signals (initialized automatically by `DefaultHTML`), so it works in any component without passing framework assigns through. A `<meta name="csrf-token">` tag must exist in the layout (Phoenix default).
 
 ## Signals
 
 - Assigns set in `mount/3` are **automatically initialized as Datastar signals** on the client. Do NOT manually add `data-signals` for mount assigns.
-- Internal assigns (`:session_id`, `:base_path`, `:stream_path`, `:event_path`, `:flash`) are filtered out — they never become client signals.
+- Internal assigns (`:session_id`, `:base_path`, `:stream_path`, `:event_path`, `:flash`) are filtered out of `@initial_signals`. However, `session_id` and `event_path` are injected as Datastar signals by `DefaultHTML` so that `event/1,2` can reference them client-side.
 - Read signals from a connection: `PhoenixDatastar.Signals.read(conn)` returns a map.
 - Patch signals on an SSE stream: `PhoenixDatastar.Signals.patch(sse, %{key: value})`.
 

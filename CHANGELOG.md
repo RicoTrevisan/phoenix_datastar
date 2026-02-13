@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12] - 2026-02-13
+
+### Changed
+- **`event/1,2` no longer requires assigns** — converted from a macro accessing `var!(assigns)` to a plain function that emits `$session_id` and `$event_path` Datastar signal references. This means `event/1,2` works in any component regardless of nesting depth, without passing `session_id` or `event_path` through as attributes.
+- `DefaultHTML` now injects `event_path` alongside `session_id` into `data-signals`. Custom `html_module` implementations should update their `data-signals` to include `event_path` (see `DefaultHTML` docs for the updated example).
+- `build_event/4` is deprecated in favour of `build_event/2`.
+
 ## [0.1.11] - 2026-02-12
 
 ### Changed

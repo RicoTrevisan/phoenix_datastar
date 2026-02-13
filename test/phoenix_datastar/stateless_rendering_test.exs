@@ -268,9 +268,10 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
 
     response = html_response(conn, 200)
 
-    # DefaultHTML should render data-signals with session_id and user signals
+    # DefaultHTML should render data-signals with session_id, event_path, and user signals
     assert response =~ "data-signals="
     assert response =~ "session_id"
+    assert response =~ "event_path"
     assert response =~ "count"
   end
 

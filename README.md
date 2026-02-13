@@ -33,7 +33,7 @@ Add `phoenix_datastar` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:phoenix_datastar, "~> 0.1.10"}
+    {:phoenix_datastar, "~> 0.1.12"}
   ]
 end
 ```
@@ -133,7 +133,7 @@ defmodule MyAppWeb.DatastarHTML do
     <div
       id="app"
       class="my-wrapper"
-      data-signals={Jason.encode!(Map.put(@initial_signals, :session_id, @session_id))}
+      data-signals={Jason.encode!(Map.merge(@initial_signals, %{session_id: @session_id, event_path: @event_path}))}
       data-init__once={@stream_path && "@get('#{@stream_path}', {openWhenHidden: true})"}
     >
       {@inner_html}
@@ -320,19 +320,21 @@ socket = console_log(socket, "Debug message")
 socket = console_log(socket, "Warning!", level: :warn)
 ```
 
-## Action Macros
+## Action Helpers
 
-PhoenixDatastar provides macros to simplify generating Datastar action expressions in your templates.
+PhoenixDatastar provides helper functions to simplify generating Datastar action expressions in your templates.
 
 ### Requirements
 
-- `assigns.session_id` must be set in your template context (automatically set by PhoenixDatastar)
-- `assigns.event_path` must be set (automatically set by PhoenixDatastar)
 - A `<meta name="csrf-token">` tag must be present in your layout (Phoenix includes this by default)
 
-### `event/2`
+### `event/1,2`
 
 Generates a Datastar `@post` action for triggering server events.
+
+The generated expression uses `$session_id` and `$event_path` Datastar signals
+(automatically initialized by `DefaultHTML`), so it works in any component
+without needing to pass framework assigns through.
 
 ```elixir
 # Simple event
