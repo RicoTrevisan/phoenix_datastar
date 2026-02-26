@@ -53,6 +53,7 @@ defmodule PhoenixDatastar.Socket do
 
   @type event ::
           {:patch, String.t(), String.t()}
+          | {:patch, String.t(), String.t(), keyword()}
           | {:script, String.t(), keyword()}
 
   @type t :: %__MODULE__{
@@ -253,7 +254,11 @@ defmodule PhoenixDatastar.Socket do
   @spec redirect(t(), String.t(), keyword()) :: t()
   def redirect(socket, url, opts \\ []) when is_binary(url) do
     # Use setTimeout for proper browser history handling (especially Firefox)
-    execute_script(socket, "setTimeout(function(){window.location='#{JS.escape_string(url)}'},0)", opts)
+    execute_script(
+      socket,
+      "setTimeout(function(){window.location='#{JS.escape_string(url)}'},0)",
+      opts
+    )
   end
 
   @doc """

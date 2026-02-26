@@ -44,13 +44,25 @@ defmodule PhoenixDatastar.DefaultHTML do
     * `@session_id` - The unique session identifier
     * `@stream_path` - The SSE stream path (nil for stateless views)
     * `@event_path` - The event POST path
+    * `@nav_path` - Soft navigation endpoint path
+    * `@nav_token` - Signed token for stream/nav authorization
     * `@initial_signals` - Map of signals set via `put_signal` in `mount/3`
     * `@inner_html` - The rendered view content
   """
   def mount(assigns) do
     ~H"""
     <div
-      data-signals={Jason.encode!(Map.merge(@initial_signals, %{session_id: @session_id, event_path: @event_path}))}
+      id="app"
+      data-signals={
+        Jason.encode!(
+          Map.merge(@initial_signals, %{
+            session_id: @session_id,
+            event_path: @event_path,
+            nav_path: @nav_path,
+            nav_token: @nav_token
+          })
+        )
+      }
       data-init__once={@stream_path && "@get('#{@stream_path}', {openWhenHidden: true})"}
     >
       {@inner_html}

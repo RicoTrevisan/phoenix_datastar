@@ -25,6 +25,7 @@ defmodule PhoenixDatastar.PageController do
   alias PhoenixDatastar.Helpers
   alias PhoenixDatastar.Server
   alias PhoenixDatastar.Socket
+  alias PhoenixDatastar.StreamToken
 
   @doc """
   Mounts a Datastar view.
@@ -36,7 +37,8 @@ defmodule PhoenixDatastar.PageController do
   """
   @spec mount(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def mount(conn, _params) do
-    %{view: view} = conn.private.datastar
+    datastar_meta = conn.private.datastar
+    %{view: view} = datastar_meta
     html_module = get_html_module(conn)
 
     # Use the actual request path (with resolved dynamic segments) instead of
@@ -75,8 +77,19 @@ defmodule PhoenixDatastar.PageController do
         {inner_html, socket.signals}
       end
 
-    stream_path = if live?, do: Path.join(resolved_path, "stream")
+    stream_token =
+      if live? do
+        # Keep the token payload minimal because this token is sent in the
+        # stream query-string URL and can otherwise exceed URI limits.
+        StreamToken.sign(conn, %{
+          "session_id" => session_id,
+          "session_name" => datastar_meta[:session_name]
+        })
+      end
+
+    stream_path = if live?, do: "/__datastar/stream?token=#{URI.encode_www_form(stream_token)}"
     event_path = Path.join(resolved_path, "_event")
+    nav_path = "/__datastar/nav"
 
     conn
     |> put_view(html_module)
@@ -84,6 +97,8 @@ defmodule PhoenixDatastar.PageController do
       session_id: session_id,
       stream_path: stream_path,
       event_path: event_path,
+      nav_path: nav_path,
+      nav_token: stream_token,
       base_path: resolved_path,
       inner_html: inner_html,
       initial_signals: initial_signals,

@@ -16,6 +16,8 @@ defmodule PhoenixDatastar.Actions do
     (Phoenix includes this by default)
   """
 
+  use Phoenix.Component
+
   @doc """
   Generates a Datastar `@post` action expression for triggering server events.
 
@@ -42,6 +44,32 @@ defmodule PhoenixDatastar.Actions do
   """
   def event(event_name, opts \\ nil) do
     build_event(event_name, opts)
+  end
+
+  @doc """
+  Generates a Datastar `@post` action expression for in-session navigation.
+  """
+  def navigate(path, opts \\ []) when is_binary(path) do
+    mode = if Keyword.get(opts, :replace, false), do: "replace", else: "push"
+
+    nav_url = "/__datastar/nav?_ds_to=#{URI.encode_www_form(path)}&_ds_mode=#{mode}"
+    "if (evt.metaKey || evt.ctrlKey || evt.shiftKey || evt.altKey || evt.button !== 0) return; evt.preventDefault(); @post('#{nav_url}', {headers: {'x-csrf-token': document.querySelector('meta[name=csrf-token]').content}})"
+  end
+
+  attr(:navigate, :string, required: true)
+  attr(:replace, :boolean, default: false)
+  attr(:rest, :global, include: ~w(class id target rel))
+  slot(:inner_block, required: true)
+
+  @doc """
+  Link component that performs Datastar soft-navigation when possible.
+  """
+  def ds_link(assigns) do
+    ~H"""
+    <a href={@navigate} data-on:click={navigate(@navigate, replace: @replace)} {@rest}>
+      {render_slot(@inner_block)}
+    </a>
+    """
   end
 
   @doc false

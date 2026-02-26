@@ -77,6 +77,30 @@ scope "/", MyAppWeb do
 end
 ```
 
+For session-aware live navigation, add global Datastar endpoints and group routes with `datastar_session`:
+
+```elixir
+import PhoenixDatastar.Router
+
+scope "/__datastar", MyAppWeb do
+  pipe_through :datastar_stream
+  get "/stream", PhoenixDatastar.StreamPlug, :stream
+  post "/nav", PhoenixDatastar.NavPlug, :navigate
+end
+
+scope "/", MyAppWeb do
+  pipe_through [:browser, :require_user]
+
+  datastar_session :dashboard,
+    stream_guard: {MyAppWeb.DatastarAuth, :require_user},
+    nav_guard: {MyAppWeb.DatastarAuth, :require_user},
+    root_selector: "#dashboard-root" do
+    datastar "/dashboard", DashboardStar
+    datastar "/dashboard/orgs", DashboardOrgsStar
+  end
+end
+```
+
 #### 4. Create `:live_datastar` and `:datastar` in your `_web.ex`
 
 ```elixir
@@ -133,7 +157,16 @@ defmodule MyAppWeb.DatastarHTML do
     <div
       id="app"
       class="my-wrapper"
-      data-signals={Jason.encode!(Map.merge(@initial_signals, %{session_id: @session_id, event_path: @event_path}))}
+      data-signals={
+        Jason.encode!(
+          Map.merge(@initial_signals, %{
+            session_id: @session_id,
+            event_path: @event_path,
+            nav_path: @nav_path,
+            nav_token: @nav_token
+          })
+        )
+      }
       data-init__once={@stream_path && "@get('#{@stream_path}', {openWhenHidden: true})"}
     >
       {@inner_html}
@@ -148,6 +181,8 @@ Available assigns in the mount template:
 - `@initial_signals` — map of signals set via `put_signal` in `mount/3`
 - `@stream_path` — SSE stream URL (nil for stateless views)
 - `@event_path` — event POST URL
+- `@nav_path` — soft navigation POST URL
+- `@nav_token` — signed stream/nav token
 - `@inner_html` — the rendered view content
 
 Then configure it in `config/config.exs`:
@@ -260,8 +295,17 @@ end
 PhoenixDatastar uses a hybrid of request/response and streaming:
 
 1. **Initial Page Load (HTTP)**: `GET /counter` calls `mount/3` and `render/1`, returns full HTML
-2. **SSE Connection**: `GET /counter/stream` opens a persistent connection, starts a GenServer (live views only)
+2. **SSE Connection**: `GET /__datastar/stream?token=...` opens a persistent connection, starts or reuses a GenServer (live views only)
 3. **User Interactions**: `POST /counter/_event/:event` triggers `handle_event/3`, updates pushed via SSE (live) or returned directly (stateless)
+
+### Session Navigation (alpha)
+
+When routes are grouped under the same `datastar_session`, you can navigate between them without a full page reload:
+
+- The existing live session stays open.
+- Navigation posts to `POST /__datastar/nav`.
+- Server validates `nav_token`, checks target route membership, then returns a fat morph + updated signals.
+- Different session (or unknown route) falls back to full reload.
 
 ## Callbacks
 
@@ -345,6 +389,20 @@ without needing to pass framework assigns through.
 
 # With signals
 <button data-on:click={event("update", "value: $count")}>Update</button>
+```
+
+### `navigate/1,2` and `<.ds_link>`
+
+Generates a Datastar post to the nav endpoint using `$nav_path`, `$nav_token`, and `$session_id`.
+
+```elixir
+<button data-on:click={navigate("/dashboard/orgs")}>Go to orgs</button>
+```
+
+`<.ds_link>` wraps this for anchor links and keeps a normal `href` fallback:
+
+```elixir
+<.ds_link navigate="/dashboard/orgs">Organizations</.ds_link>
 ```
 
 ## Stateless vs Live Views

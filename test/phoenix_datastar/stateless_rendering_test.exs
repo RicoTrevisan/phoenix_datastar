@@ -91,6 +91,22 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
     def render(assigns), do: ~H|<div>Welcome {@user.name}</div>|
   end
 
+  defmodule LiveViewWithSignals do
+    use PhoenixDatastar, :live
+
+    @impl PhoenixDatastar
+    def mount(_params, _session, socket) do
+      {:ok, put_signal(socket, :count, 0)}
+    end
+
+    @impl PhoenixDatastar
+    def render(assigns), do: ~H|<span id="count" data-text="$count"></span>|
+  end
+
+  defmodule TokenEndpoint do
+    def config(:secret_key_base), do: String.duplicate("a", 64)
+  end
+
   setup do
     start_supervised!({Registry, keys: :unique, name: PhoenixDatastar.Registry})
     :ok
@@ -310,5 +326,34 @@ defmodule PhoenixDatastar.StatelessRenderingTest do
     # This should not raise — the struct is in assigns, not signals
     conn = PhoenixDatastar.PageController.mount(conn, %{})
     assert conn.status == 200
+  end
+
+  test "live stream token URL stays short even with large params and assigns" do
+    huge = String.duplicate("x", 20_000)
+
+    conn =
+      Phoenix.ConnTest.build_conn(:get, "/dashboard")
+      |> Map.put(:params, %{"_format" => "html", "huge" => huge})
+      |> Plug.Conn.assign(:current_user_blob, huge)
+      |> Plug.Conn.put_private(:phoenix_endpoint, TokenEndpoint)
+      |> Plug.Conn.put_private(:datastar, %{
+        view: LiveViewWithSignals,
+        path: "/dashboard",
+        session_name: :dashboard,
+        html_module: TestHTML
+      })
+
+    conn = PhoenixDatastar.PageController.mount(conn, %{})
+    response = html_response(conn, 200)
+
+    [_, stream_path] = Regex.run(~r/Stream:\s+(\S+)\s+Event:/, response)
+    assert String.starts_with?(stream_path, "/__datastar/stream?token=")
+    assert String.length(stream_path) < 1024
+
+    token =
+      stream_path |> URI.parse() |> Map.get(:query) |> URI.decode_query() |> Map.fetch!("token")
+
+    {:ok, payload} = PhoenixDatastar.StreamToken.verify(conn, token)
+    assert Enum.sort(Map.keys(payload)) == ["session_id", "session_name"]
   end
 end

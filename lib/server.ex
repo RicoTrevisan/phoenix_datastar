@@ -79,6 +79,22 @@ defmodule PhoenixDatastar.Server do
   end
 
   @doc """
+  Replaces the active view/socket state for an existing live session
+  and pushes the new content through the SSE stream.
+
+  ## Nav meta
+
+    * `:root_selector` - CSS selector for the content container (e.g., "#app")
+    * `:target` - The target URL path
+    * `:mode` - "push" or "replace" for history state
+    * `:framework_signals` - Map of framework signals (session_id, event_path, nav_token, etc.)
+  """
+  @spec navigate(String.t(), module(), map(), String.t(), map()) :: :ok
+  def navigate(session_id, view, params, base_path, nav_meta) do
+    GenServer.call(Registry.via(session_id), {:navigate, view, params, base_path, nav_meta})
+  end
+
+  @doc """
   Dispatches an event to the GenServer for handling.
 
   This is an async cast - the response is sent via the SSE stream.
@@ -109,6 +125,9 @@ defmodule PhoenixDatastar.Server do
           Enum.reduce(events, sse, fn
             {:patch, selector, html}, sse ->
               Elements.patch(sse, html, selector: selector)
+
+            {:patch, selector, html, opts}, sse ->
+              Elements.patch(sse, html, Keyword.put(opts, :selector, selector))
 
             {:script, script, opts}, sse ->
               Scripts.execute(sse, script, opts)
@@ -147,14 +166,12 @@ defmodule PhoenixDatastar.Server do
     session = Keyword.get(opts, :session, %{})
     base_path = Keyword.get(opts, :base_path, "")
 
-    socket = Socket.new(session_id, view, base_path,
-      flash: Map.get(session, "flash", %{})
-    )
+    socket = Socket.new(session_id, view, base_path, flash: Map.get(session, "flash", %{}))
 
     # Call the view's mount callback to initialize state
     {:ok, socket} = view.mount(params, session, socket)
 
-    {:ok, %{view: view, socket: socket, subscriber: nil}}
+    {:ok, %{view: view, socket: socket, subscriber: nil, session: session}}
   end
 
   @impl true
@@ -168,6 +185,46 @@ defmodule PhoenixDatastar.Server do
   def handle_call(:get_snapshot, _from, %{view: view, socket: socket} = state) do
     html = render_html(view, socket)
     {:reply, {:ok, html, socket.signals}, state}
+  end
+
+  def handle_call(
+        {:navigate, view, params, base_path, nav_meta},
+        _from,
+        %{view: old_view, socket: old_socket, session: session, subscriber: subscriber} = state
+      ) do
+    call_view_terminate(old_view, old_socket)
+
+    socket = Socket.new(old_socket.id, view, base_path, flash: Map.get(session, "flash", %{}))
+
+    socket =
+      case view.mount(params, session, socket) do
+        {:ok, socket} -> socket
+        {:ok, socket, _opts} -> socket
+      end
+
+    html =
+      render_html(view, socket)
+      |> Phoenix.HTML.Safe.to_iodata()
+      |> IO.iodata_to_binary()
+
+    # Merge view signals with framework signals (nav_token, event_path, etc.)
+    all_signals = Map.merge(socket.signals, nav_meta.framework_signals)
+
+    # Build navigation events: inner patch + pushState script
+    history_fn = if nav_meta.mode == "replace", do: "replaceState", else: "pushState"
+
+    events = [
+      {:patch, nav_meta.root_selector, html, mode: :inner},
+      {:script, "history.#{history_fn}({}, '', '#{nav_meta.target}')", []}
+    ]
+
+    # Push through the existing SSE stream
+    if subscriber do
+      send(subscriber, {:datastar_signals, all_signals})
+      send(subscriber, {:datastar_events, events})
+    end
+
+    {:reply, :ok, %{state | view: view, socket: %{socket | events: []}}}
   end
 
   @impl true

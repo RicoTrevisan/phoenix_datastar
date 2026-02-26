@@ -174,7 +174,10 @@ defmodule PhoenixDatastar.Plug do
       end
     rescue
       e ->
-        Logger.error("Stateless event error: #{inspect(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}")
+        Logger.error(
+          "Stateless event error: #{inspect(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}"
+        )
+
         send_resp(conn, 500, "Internal server error")
     end
   end
@@ -187,7 +190,11 @@ defmodule PhoenixDatastar.Plug do
     events =
       if map_size(socket.signals) > 0 do
         events ++
-          [SSE.format_event("datastar-patch-signals", ["signals #{Jason.encode!(socket.signals)}"])]
+          [
+            SSE.format_event("datastar-patch-signals", [
+              "signals #{Jason.encode!(socket.signals)}"
+            ])
+          ]
       else
         events
       end
