@@ -13,7 +13,37 @@ defmodule PhoenixDatastar.SocketTest do
     def render(_assigns), do: ""
   end
 
-  describe "assign/3" do
+  describe "new/4" do
+    test "creates socket with standard assigns" do
+      socket = Socket.new("session123", TestView, "/counter")
+
+      assert socket.id == "session123"
+      assert socket.view == TestView
+      assert socket.assigns.session_id == "session123"
+      assert socket.assigns.base_path == "/counter"
+      assert socket.assigns.stream_path == "/counter/stream"
+      assert socket.assigns.event_path == "/counter/_event"
+      assert socket.assigns.flash == %{}
+      assert socket.signals == %{}
+      assert socket.events == []
+    end
+
+    test "creates non-live socket with live: false" do
+      socket = Socket.new("session123", TestView, "/about", live: false)
+
+      assert socket.assigns.stream_path == nil
+      assert socket.assigns.event_path == "/about/_event"
+    end
+
+    test "handles root base path" do
+      socket = Socket.new("session123", TestView, "/")
+
+      assert socket.assigns.stream_path == "/stream"
+      assert socket.assigns.event_path == "/_event"
+    end
+  end
+
+  describe "assign/3 and assign/2" do
     test "assigns a single key-value pair" do
       socket = %Socket{view: TestView}
       socket = Socket.assign(socket, :user, "Alice")
@@ -35,9 +65,7 @@ defmodule PhoenixDatastar.SocketTest do
       assert socket.assigns.user == "Alice"
       assert socket.signals == %{count: 0}
     end
-  end
 
-  describe "assign/2" do
     test "assigns from a map" do
       socket = %Socket{view: TestView}
       socket = Socket.assign(socket, %{user: "Alice", role: :admin})
@@ -64,7 +92,7 @@ defmodule PhoenixDatastar.SocketTest do
     end
   end
 
-  describe "put_signal/3" do
+  describe "put_signal/3 and put_signal/2" do
     test "puts a single signal" do
       socket = %Socket{view: TestView}
       socket = Socket.put_signal(socket, :count, 0)
@@ -86,9 +114,7 @@ defmodule PhoenixDatastar.SocketTest do
       assert socket.signals.count == 0
       assert socket.assigns.user == "Alice"
     end
-  end
 
-  describe "put_signal/2" do
     test "puts signals from a map" do
       socket = %Socket{view: TestView}
       socket = Socket.put_signal(socket, %{count: 0, name: "test"})
@@ -121,25 +147,18 @@ defmodule PhoenixDatastar.SocketTest do
 
       socket =
         Socket.patch_elements(socket, "#greeting", fn assigns ->
-          # Render function receives assigns, not signals
           refute Map.has_key?(assigns, :count)
           {:safe, "<span>Hello #{assigns.name}</span>"}
         end)
 
-      assert length(socket.events) == 1
-      [{:patch, selector, html}] = socket.events
-      assert selector == "#greeting"
-      assert html == "<span>Hello Alice</span>"
+      assert [{:patch, "#greeting", "<span>Hello Alice</span>"}] = socket.events
     end
 
     test "queues a patch with raw HTML" do
       socket = %Socket{view: TestView}
       socket = Socket.patch_elements(socket, "#target", {:safe, "<div>content</div>"})
 
-      assert length(socket.events) == 1
-      [{:patch, selector, html}] = socket.events
-      assert selector == "#target"
-      assert html == "<div>content</div>"
+      assert [{:patch, "#target", "<div>content</div>"}] = socket.events
     end
 
     test "accumulates multiple patches" do
@@ -151,6 +170,106 @@ defmodule PhoenixDatastar.SocketTest do
         |> Socket.patch_elements("#b", {:safe, "<span>b</span>"})
 
       assert length(socket.events) == 2
+    end
+
+    test "converts iodata to binary" do
+      socket = %Socket{view: TestView}
+      socket = Socket.patch_elements(socket, "#target", {:safe, ["<div>", "content", "</div>"]})
+
+      [{:patch, _selector, html}] = socket.events
+      assert html == "<div>content</div>"
+    end
+  end
+
+  describe "execute_script/3" do
+    test "queues a script event with options" do
+      socket = %Socket{view: TestView}
+
+      socket =
+        socket
+        |> Socket.execute_script("alert('Hello!')")
+        |> Socket.execute_script("import {...}", attributes: %{type: "module"})
+
+      assert [{:script, "alert('Hello!')", []}, {:script, "import {...}", [attributes: %{type: "module"}]}] =
+               socket.events
+    end
+  end
+
+  describe "redirect/3" do
+    test "queues a redirect script" do
+      socket = %Socket{view: TestView}
+      socket = Socket.redirect(socket, "/dashboard")
+
+      [{:script, script, _opts}] = socket.events
+      assert script =~ "window.location='/dashboard'"
+      assert script =~ "setTimeout"
+    end
+  end
+
+  describe "console_log/3" do
+    test "queues console.log with default level" do
+      socket = %Socket{view: TestView}
+      socket = Socket.console_log(socket, "Debug message")
+
+      [{:script, script, _opts}] = socket.events
+      assert script == "console.log('Debug message')"
+    end
+
+    test "supports all log levels" do
+      for {level, method} <- [warn: "warn", error: "error", info: "info", debug: "debug"] do
+        socket = %Socket{view: TestView}
+        socket = Socket.console_log(socket, "msg", level: level)
+
+        [{:script, script, _}] = socket.events
+        assert script == "console.#{method}('msg')"
+      end
+    end
+
+    test "encodes non-string messages as JSON" do
+      socket = %Socket{view: TestView}
+      socket = Socket.console_log(socket, [1, 2, 3])
+
+      [{:script, script, _opts}] = socket.events
+      assert script == "console.log([1,2,3])"
+    end
+  end
+
+  describe "event ordering" do
+    test "patches, scripts, and redirects accumulate in order" do
+      socket = %Socket{view: TestView}
+
+      socket =
+        socket
+        |> Socket.patch_elements("#a", {:safe, "<span>a</span>"})
+        |> Socket.execute_script("console.log('test')")
+        |> Socket.patch_elements("#b", {:safe, "<span>b</span>"})
+
+      assert [{:patch, "#a", _}, {:script, _, _}, {:patch, "#b", _}] = socket.events
+    end
+  end
+
+  describe "debug annotation stripping" do
+    setup do
+      original = Application.get_env(:phoenix_datastar, :strip_debug_annotations)
+      on_exit(fn -> Application.put_env(:phoenix_datastar, :strip_debug_annotations, original) end)
+      :ok
+    end
+
+    test "strips debug annotations when config is enabled" do
+      Application.put_env(:phoenix_datastar, :strip_debug_annotations, true)
+
+      socket = %Socket{view: TestView}
+
+      html_with_annotations =
+        {:safe,
+         ~s|<!-- @caller lib/my_module.ex:10 --><div data-phx-loc="lib/my_module.ex:10">content</div>|}
+
+      socket = Socket.patch_elements(socket, "#target", html_with_annotations)
+
+      [{:patch, _selector, html}] = socket.events
+      refute html =~ "@caller"
+      refute html =~ "data-phx-loc"
+      assert html =~ "<div>content</div>"
     end
   end
 end

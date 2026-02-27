@@ -3,33 +3,81 @@ defmodule PhoenixDatastar.SSETest do
 
   alias PhoenixDatastar.SSE
 
-  describe "new/1" do
-    test "creates an SSE struct from a conn" do
+  defmodule MockConn do
+    def chunked_conn(opts \\ []) do
+      adapter = opts[:adapter] || {__MODULE__, %{chunks: []}}
+
+      %Plug.Conn{
+        adapter: adapter,
+        state: :chunked
+      }
+    end
+
+    def chunk(%{fail: true}, _chunk), do: {:error, :closed}
+
+    def chunk(payload, chunk) do
+      {:ok, chunk, Map.update(payload, :chunks, [chunk], &(&1 ++ [chunk]))}
+    end
+  end
+
+  describe "new/1 and closed?/1 and close/1" do
+    test "lifecycle: new creates open SSE, close marks it closed" do
       conn = %Plug.Conn{}
       sse = SSE.new(conn)
 
       assert %SSE{conn: ^conn, closed: false} = sse
-    end
-  end
-
-  describe "closed?/1" do
-    test "returns false for open connection" do
-      sse = %SSE{conn: %Plug.Conn{}, closed: false}
       refute SSE.closed?(sse)
-    end
 
-    test "returns true for closed connection" do
-      sse = %SSE{conn: %Plug.Conn{}, closed: true}
-      assert SSE.closed?(sse)
+      closed = SSE.close(sse)
+      assert SSE.closed?(closed)
     end
   end
 
-  describe "close/1" do
-    test "marks the connection as closed" do
-      sse = %SSE{conn: %Plug.Conn{}, closed: false}
-      sse = SSE.close(sse)
+  describe "send_event/4" do
+    test "sends event and updates conn" do
+      sse = SSE.new(MockConn.chunked_conn())
 
-      assert SSE.closed?(sse)
+      assert {:ok, updated} = SSE.send_event(sse, "test-event", ["data"])
+      assert %SSE{closed: false} = updated
+      assert updated.conn != sse.conn
+    end
+
+    test "returns error when connection is closed" do
+      sse = %SSE{conn: MockConn.chunked_conn(), closed: true}
+
+      assert {:error, {:closed, ^sse}} = SSE.send_event(sse, "test-event", ["data"])
+    end
+
+    test "returns error when chunk fails" do
+      conn = MockConn.chunked_conn(adapter: {MockConn, %{fail: true}})
+      sse = SSE.new(conn)
+
+      assert {:error, :closed} = SSE.send_event(sse, "test-event", ["data"])
+    end
+
+    test "accepts string data_lines and options" do
+      sse = SSE.new(MockConn.chunked_conn())
+
+      assert {:ok, _} = SSE.send_event(sse, "test", "single line", event_id: "e1", retry: 5000)
+    end
+  end
+
+  describe "send_event!/4" do
+    test "returns SSE on success, raises on failure" do
+      sse = SSE.new(MockConn.chunked_conn())
+
+      result =
+        sse
+        |> SSE.send_event!("event-1", ["data 1"])
+        |> SSE.send_event!("event-2", ["data 2"])
+
+      assert %SSE{closed: false} = result
+
+      failed_sse = SSE.new(MockConn.chunked_conn(adapter: {MockConn, %{fail: true}}))
+
+      assert_raise RuntimeError, ~r/Failed to send SSE event/, fn ->
+        SSE.send_event!(failed_sse, "test-event", ["data"])
+      end
     end
   end
 
