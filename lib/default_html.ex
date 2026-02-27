@@ -24,7 +24,16 @@ defmodule PhoenixDatastar.DefaultHTML do
           <div
             id="my-app"
             class="custom-wrapper"
-            data-signals={Jason.encode!(Map.merge(@initial_signals, %{session_id: @session_id, event_path: @event_path}))}
+            data-signals={
+              Jason.encode!(
+                Map.merge(@initial_signals, %{
+                  session_id: @session_id,
+                  event_path: @event_path,
+                  nav_path: @nav_path,
+                  nav_token: @nav_token
+                })
+              )
+            }
             data-init__once={@stream_path && "@get('\#{@stream_path}', {openWhenHidden: true})"}
           >
             {@inner_html}
@@ -32,6 +41,9 @@ defmodule PhoenixDatastar.DefaultHTML do
           \"\"\"
         end
       end
+
+  All four framework signals (`session_id`, `event_path`, `nav_path`, `nav_token`)
+  must be included in `data-signals` for events and soft navigation to work.
   """
 
   use Phoenix.Component
@@ -49,6 +61,7 @@ defmodule PhoenixDatastar.DefaultHTML do
     * `@initial_signals` - Map of signals set via `put_signal` in `mount/3`
     * `@inner_html` - The rendered view content
   """
+  @spec mount(map()) :: Phoenix.LiveView.Rendered.t()
   def mount(assigns) do
     ~H"""
     <div

@@ -9,16 +9,21 @@ defmodule PhoenixDatastar.Router do
       scope "/", MyAppWeb do
         pipe_through :browser
 
-        datastar_session :default, stream_guard: {MyAppWeb.DatastarAuth, :allow} do
+        datastar_session :default do
           datastar "/counter", CounterStar
         end
       end
 
   `datastar/3` generates per-view routes:
-    - GET /counter - renders the initial page
-    - POST /counter/_event/:event - handles events
+    - `GET /counter` — renders the initial page via `PhoenixDatastar.PageController`
+    - `POST /counter/_event/:event` — handles events via `PhoenixDatastar.Plug`
+
+  For live views, a global SSE stream endpoint (`PhoenixDatastar.StreamPlug`) and
+  a navigation endpoint (`PhoenixDatastar.NavPlug`) must also be added to the router.
+  See the README for the full setup.
   """
 
+  @doc false
   defmacro __before_compile__(env) do
     routes =
       env.module
@@ -35,12 +40,23 @@ defmodule PhoenixDatastar.Router do
   @doc """
   Groups datastar routes under shared stream/navigation behavior.
 
+  Routes within a `datastar_session` block are registered in the
+  `PhoenixDatastar.RouteRegistry` for soft navigation matching. When a user
+  navigates between views in the same session, the existing SSE connection
+  is reused and the view is swapped in-place without a full page reload.
+
+  Soft navigation only works between live views (`use PhoenixDatastar, :live`)
+  within the same session. Stateless views always trigger a full page reload.
+
   ## Options
 
-    * `:stream_guard` - MFA tuple `{Module, :function}` to authorize stream access.
-    * `:nav_guard` - MFA tuple `{Module, :function}` to authorize in-session navigation.
-      Defaults to `:stream_guard`.
-    * `:root_selector` - DOM selector patched during soft navigation. Defaults to `"#app"`.
+    * `:root_selector` - CSS selector for the container element patched during
+      soft navigation. Defaults to `"#app"`.
+    * `:stream_guard` - MFA tuple `{Module, :function}` stored as route metadata.
+      Reserved for future use — not currently enforced by `StreamPlug` or `NavPlug`.
+      Use pipeline plugs for authorization instead.
+    * `:nav_guard` - MFA tuple `{Module, :function}` stored as route metadata.
+      Defaults to `:stream_guard`. Reserved for future use — not currently enforced.
   """
   defmacro datastar_session(name, opts \\ [], do: block) do
     quote do

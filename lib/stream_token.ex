@@ -3,11 +3,13 @@ defmodule PhoenixDatastar.StreamToken do
 
   @salt "phoenix_datastar_stream"
 
+  @doc false
   @spec sign(Plug.Conn.t(), map()) :: String.t()
   def sign(conn, payload) when is_map(payload) do
     Phoenix.Token.sign(endpoint!(conn), @salt, payload)
   end
 
+  @doc false
   @spec verify(Plug.Conn.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def verify(conn, token, opts \\ []) when is_binary(token) do
     max_age =

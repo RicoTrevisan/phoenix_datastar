@@ -2,7 +2,14 @@ defmodule PhoenixDatastar.StreamPlug do
   @moduledoc """
   Global stream endpoint for Datastar live sessions.
 
-  Expected route:
+  Handles `GET /__datastar/stream?token=...` requests. Verifies the stream token
+  (using Phoenix.Token-based signing), subscribes to the session's GenServer, and
+  enters the SSE loop (`PhoenixDatastar.Server.enter_loop/2`).
+
+  Returns 401 if the token is missing or invalid. Returns 409 if the GenServer
+  is no longer running (e.g., session expired), signaling the client to reload.
+
+  ## Expected route
 
       get "/__datastar/stream", PhoenixDatastar.StreamPlug, :stream
   """
@@ -13,9 +20,11 @@ defmodule PhoenixDatastar.StreamPlug do
 
   @behaviour Plug
 
+  @doc false
   @impl Plug
   def init(opts), do: opts
 
+  @doc false
   @impl Plug
   def call(conn, _opts) do
     conn = fetch_query_params(conn)

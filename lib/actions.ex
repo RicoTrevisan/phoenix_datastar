@@ -42,13 +42,33 @@ defmodule PhoenixDatastar.Actions do
       <button data-on:click={event("update", "value: $count")}>Update</button>
 
   """
+  @spec event(String.t(), String.t() | nil) :: String.t()
   def event(event_name, opts \\ nil) do
     build_event(event_name, opts)
   end
 
   @doc """
-  Generates a Datastar `@post` action expression for in-session navigation.
+  Generates a Datastar `@post` action expression for in-session soft navigation.
+
+  Posts to `/__datastar/nav` which is handled by `PhoenixDatastar.NavPlug`.
+  The `$nav_token` signal is automatically included by Datastar in the request
+  body (as part of the current signal payload) — no manual setup required.
+
+  If the target route is a live view in the same `datastar_session`, navigation
+  happens without a full page reload. Otherwise, falls back to `window.location`.
+
+  ## Options
+
+    * `:replace` - When `true`, uses `replaceState` instead of `pushState`.
+      Defaults to `false`.
+
+  ## Examples
+
+      <button data-on:click={navigate("/dashboard/orgs")}>Go to orgs</button>
+      <button data-on:click={navigate("/dashboard/orgs", replace: true)}>Replace</button>
+
   """
+  @spec navigate(String.t(), keyword()) :: String.t()
   def navigate(path, opts \\ []) when is_binary(path) do
     mode = if Keyword.get(opts, :replace, false), do: "replace", else: "push"
 
@@ -58,15 +78,35 @@ defmodule PhoenixDatastar.Actions do
 
   attr(:navigate, :string, required: true)
   attr(:replace, :boolean, default: false)
+  attr(:method, :atom, default: :soft, values: [:soft, :hard])
   attr(:rest, :global, include: ~w(class id target rel))
   slot(:inner_block, required: true)
 
   @doc """
   Link component that performs Datastar soft-navigation when possible.
+
+  Renders an `<a>` tag with a normal `href` for accessibility, right-click context
+  menus, and modified clicks (Ctrl/Cmd+click open in new tab). Unmodified left clicks
+  are intercepted for soft navigation via `navigate/2`.
+
+  ## Attributes
+
+    * `:navigate` (required) — Target path.
+    * `:replace` (boolean, default `false`) — Use `replaceState` instead of `pushState`.
+    * `:method` (`:soft` or `:hard`, default `:soft`) — Set to `:hard` to force a full
+      page navigation instead of soft navigation. Useful when navigation requires a full
+      session refresh (e.g., switching workspaces).
+
+  ## Examples
+
+      <.ds_link navigate="/dashboard/orgs">Organizations</.ds_link>
+      <.ds_link navigate="/dashboard/orgs" replace>Organizations</.ds_link>
+      <.ds_link navigate="/other" method={:hard}>Full Reload</.ds_link>
+
   """
   def ds_link(assigns) do
     ~H"""
-    <a href={@navigate} data-on:click={navigate(@navigate, replace: @replace)} {@rest}>
+    <a href={@navigate} data-on:click={@method != :hard && navigate(@navigate, replace: @replace)} {@rest}>
       {render_slot(@inner_block)}
     </a>
     """

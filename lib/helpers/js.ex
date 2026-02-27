@@ -2,9 +2,7 @@ defmodule PhoenixDatastar.Helpers.JS do
   @moduledoc false
   # Shared JavaScript string escaping helpers
 
-  @doc """
-  Escapes a string for use in single-quoted JavaScript strings.
-  """
+  @doc false
   def escape_string(str) do
     str
     |> String.replace("\\", "\\\\")

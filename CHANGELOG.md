@@ -6,7 +6,7 @@
 - `datastar_session/3` router macro for grouping Datastar routes under shared session navigation settings.
 - `PhoenixDatastar.StreamPlug` for global stream endpoint support (`GET /__datastar/stream`).
 - `PhoenixDatastar.NavPlug` for in-session soft navigation (`POST /__datastar/nav`).
-- `PhoenixDatastar.StreamToken` for signed stream/nav token generation and verification.
+- PhoenixDatastar.StreamToken for signed stream/nav token generation and verification.
 - `PhoenixDatastar.RouteRegistry` for session-aware route matching.
 - `navigate/1,2` action helper and `<.ds_link navigate="...">` component for soft navigation links.
 
@@ -14,6 +14,9 @@
 - Live mount now emits global stream URL + signed nav metadata signals (`nav_path`, `nav_token`).
 - Default HTML wrapper now includes `nav_path` and `nav_token` in framework signals.
 - Live session server supports in-place route transitions via `Server.navigate/5`.
+- Stream token payload now contains only `session_id` and `session_name`, keeping SSE stream URLs short regardless of params/assigns size.
+- `stream_guard`/`nav_guard` options on `datastar_session` are now documented as metadata-only (reserved for future use). Use pipeline plugs for authorization.
+- `stream_token_max_age` application config option (default: 3600s) controls how long stream/nav tokens remain valid.
 
 ## [0.1.12] - 2026-02-13
 

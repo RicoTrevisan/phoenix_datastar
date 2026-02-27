@@ -2,7 +2,18 @@ defmodule PhoenixDatastar.NavPlug do
   @moduledoc """
   Global in-session navigation endpoint.
 
-  Expected route:
+  Handles soft navigation between live views within the same `datastar_session`.
+  When a user navigates (via `navigate/2` or `<.ds_link>`), this plug:
+
+  1. Verifies the signed `nav_token` (using Phoenix.Token-based signing).
+  2. Matches the target path against registered routes via `PhoenixDatastar.RouteRegistry`.
+  3. Checks the target is a live view in the same `datastar_session` as the source.
+  4. If valid: calls `Server.navigate/5` to swap the view in the existing GenServer,
+     pushing new HTML, signals, and a `pushState` script through the SSE stream.
+     A fresh `nav_token` is issued for subsequent navigations.
+  5. If invalid: falls back to a full page reload via `window.location`.
+
+  ## Expected route
 
       post "/__datastar/nav", PhoenixDatastar.NavPlug, :navigate
   """
@@ -12,9 +23,11 @@ defmodule PhoenixDatastar.NavPlug do
 
   alias PhoenixDatastar.{RouteRegistry, SSE, Server, StreamToken}
 
+  @doc false
   @impl Plug
   def init(opts), do: opts
 
+  @doc false
   @impl Plug
   def call(conn, _opts) do
     conn = fetch_query_params(conn)

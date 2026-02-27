@@ -82,8 +82,10 @@ For session-aware live navigation, add global Datastar endpoints and group route
 ```elixir
 import PhoenixDatastar.Router
 
-scope "/__datastar", MyAppWeb do
-  pipe_through :datastar_stream
+# Global Datastar endpoints for SSE streaming and soft navigation.
+# These need session access for CSRF protection.
+scope "/__datastar" do
+  pipe_through [:fetch_session, :protect_from_forgery]
   get "/stream", PhoenixDatastar.StreamPlug, :stream
   post "/nav", PhoenixDatastar.NavPlug, :navigate
 end
@@ -92,8 +94,6 @@ scope "/", MyAppWeb do
   pipe_through [:browser, :require_user]
 
   datastar_session :dashboard,
-    stream_guard: {MyAppWeb.DatastarAuth, :require_user},
-    nav_guard: {MyAppWeb.DatastarAuth, :require_user},
     root_selector: "#dashboard-root" do
     datastar "/dashboard", DashboardStar
     datastar "/dashboard/orgs", DashboardOrgsStar
@@ -302,10 +302,20 @@ PhoenixDatastar uses a hybrid of request/response and streaming:
 
 When routes are grouped under the same `datastar_session`, you can navigate between them without a full page reload:
 
-- The existing live session stays open.
-- Navigation posts to `POST /__datastar/nav`.
-- Server validates `nav_token`, checks target route membership, then returns a fat morph + updated signals.
-- Different session (or unknown route) falls back to full reload.
+1. Client clicks a `<.ds_link>` or calls `navigate("/path")`.
+2. `POST /__datastar/nav` is sent with the signed `nav_token` (included automatically by Datastar as a signal).
+3. `PhoenixDatastar.NavPlug` verifies the token, matches the target route via `PhoenixDatastar.RouteRegistry`, and checks the target is a live view in the same session.
+4. If valid: `Server.navigate/5` swaps the view in the existing GenServer, pushes new HTML + signals + `pushState` through the SSE stream. A fresh `nav_token` is issued.
+5. If invalid (different session, stateless target, or unknown route): falls back to `window.location` for a full page reload.
+
+**Note:** Soft navigation only works between live views (`use PhoenixDatastar, :live`) within the same `datastar_session`. Stateless views always trigger a full page reload.
+
+#### Key Modules
+
+- **`PhoenixDatastar.StreamPlug`** — Handles `GET /__datastar/stream?token=...`. Verifies the stream token, subscribes to the session's GenServer, and enters the SSE loop.
+- **`PhoenixDatastar.NavPlug`** — Handles `POST /__datastar/nav`. Verifies the nav token, matches the target route, and either performs soft navigation or falls back to a full reload.
+- **StreamToken** — Signs and verifies Phoenix tokens for stream/nav authorization. Token expiry defaults to 1 hour, configurable via `config :phoenix_datastar, :stream_token_max_age, 3600`.
+- **`PhoenixDatastar.RouteRegistry`** — Runtime route lookup using metadata compiled by `datastar/3`.
 
 ## Callbacks
 
@@ -393,17 +403,22 @@ without needing to pass framework assigns through.
 
 ### `navigate/1,2` and `<.ds_link>`
 
-Generates a Datastar post to the nav endpoint using `$nav_path`, `$nav_token`, and `$session_id`.
+Generates a Datastar `@post` expression for in-session soft navigation. The `$nav_token` signal is automatically included by Datastar in the request — no manual setup required.
 
 ```elixir
 <button data-on:click={navigate("/dashboard/orgs")}>Go to orgs</button>
+<button data-on:click={navigate("/dashboard/orgs", replace: true)}>Replace history</button>
 ```
 
-`<.ds_link>` wraps this for anchor links and keeps a normal `href` fallback:
+`<.ds_link>` wraps this in an anchor tag with a normal `href` fallback for accessibility, right-click, and modified clicks (Ctrl/Cmd+click open in new tab):
 
 ```elixir
 <.ds_link navigate="/dashboard/orgs">Organizations</.ds_link>
+<.ds_link navigate="/dashboard/orgs" replace>Organizations</.ds_link>
+<.ds_link navigate="/other" method={:hard}>Full Reload</.ds_link>
 ```
+
+The `:method` attribute (`:soft` or `:hard`, default `:soft`) lets you force a full page navigation when needed (e.g., switching workspaces).
 
 ## Stateless vs Live Views
 
