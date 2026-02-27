@@ -1,18 +1,22 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.13] - 2026-02-27
 
 ### Added
-- `datastar_session/3` router macro for grouping Datastar routes under shared session navigation settings.
-- `PhoenixDatastar.StreamPlug` for global stream endpoint support (`GET /__datastar/stream`).
-- `PhoenixDatastar.NavPlug` for in-session soft navigation (`POST /__datastar/nav`).
-- PhoenixDatastar.StreamToken for signed stream/nav token generation and verification.
-- `PhoenixDatastar.RouteRegistry` for session-aware route matching.
-- `navigate/1,2` action helper and `<.ds_link navigate="...">` component for soft navigation links.
+- In-session soft navigation via SSE stream (`navigate/2`, `<.ds_link>`, `NavPlug`)
+- `datastar_session/3` router macro for grouping Datastar routes under shared session navigation settings
+- `PhoenixDatastar.StreamPlug` for global stream endpoint support (`GET /__datastar/stream`)
+- `PhoenixDatastar.NavPlug` for in-session soft navigation (`POST /__datastar/nav`)
+- Signed stream/nav token generation and verification (`StreamToken`)
+- `PhoenixDatastar.RouteRegistry` for session-aware route matching
+- `navigate/1,2` action helper and `<.ds_link navigate="...">` component for soft navigation links
 
 ### Changed
-- Live mount now emits global stream URL + signed nav metadata signals (`nav_path`, `nav_token`).
-- Default HTML wrapper now includes `nav_path` and `nav_token` in framework signals.
+- Live mount now emits global stream URL + signed nav metadata signals (`nav_path`, `nav_token`)
+- Default HTML wrapper now includes `nav_path` and `nav_token` in framework signals
+- Cleaned up unused functions
+- Improved documentation
+- Streamlined test suite
 - Live session server supports in-place route transitions via `Server.navigate/5`.
 - Stream token payload now contains only `session_id` and `session_name`, keeping SSE stream URLs short regardless of params/assigns size.
 - `stream_guard`/`nav_guard` options on `datastar_session` are now documented as metadata-only (reserved for future use). Use pipeline plugs for authorization.
