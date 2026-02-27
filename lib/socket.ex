@@ -304,20 +304,7 @@ defmodule PhoenixDatastar.Socket do
     execute_script(socket, "console.#{level_str}(#{js_message})", opts)
   end
 
-  @doc """
-  Strips Phoenix LiveView debug annotations from HTML if configured.
-
-  When `config :phoenix_datastar, :strip_debug_annotations, true` is set
-  (typically in dev.exs), this removes:
-  - HTML comments added by `debug_heex_annotations` (e.g., `<!-- @caller ... -->`)
-  - `data-phx-loc` attributes added by `debug_attributes`
-
-  This allows PhoenixDatastar SSE patches to work correctly even when LiveView
-  debug annotations are enabled in development. The initial page load will still
-  have annotations for debugging, but SSE patches will be clean.
-  """
-  @spec maybe_strip_debug_annotations(String.t()) :: String.t()
-  def maybe_strip_debug_annotations(html) when is_binary(html) do
+  defp maybe_strip_debug_annotations(html) when is_binary(html) do
     if Application.get_env(:phoenix_datastar, :strip_debug_annotations, false) do
       html
       # Remove HEEx debug comments: <!-- @caller ... -->, <!-- <Component> ... -->, <!-- </Component> -->

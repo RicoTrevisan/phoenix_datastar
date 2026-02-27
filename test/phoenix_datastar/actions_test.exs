@@ -4,18 +4,16 @@ defmodule PhoenixDatastar.ActionsTest do
   import PhoenixDatastar.Actions
   import Phoenix.LiveViewTest
 
-  test "navigate/2 builds nav post action" do
+  test "navigate/2 builds nav post action with query params" do
     action = navigate("/dashboard/orgs")
 
-    assert action =~ "@post($nav_path"
-    assert action =~ "to: '/dashboard/orgs'"
-    assert action =~ "nav_token: $nav_token"
+    assert action =~ "@post('/__datastar/nav?_ds_to=%2Fdashboard%2Forgs&_ds_mode=push'"
     assert action =~ "evt.preventDefault()"
   end
 
   test "navigate/2 supports replace mode" do
     action = navigate("/dashboard/orgs", replace: true)
-    assert action =~ "mode: 'replace'"
+    assert action =~ "_ds_mode=replace"
   end
 
   test "ds_link emits click handler with explicit preventDefault" do

@@ -72,8 +72,7 @@ defmodule PhoenixDatastar.Actions do
     """
   end
 
-  @doc false
-  def build_event(event_name, opts) do
+  defp build_event(event_name, opts) do
     path = "$event_path+'/#{event_name}'"
     headers = "headers: {'x-csrf-token': document.querySelector('meta[name=csrf-token]').content}"
     session = "session_id: $session_id"
@@ -83,9 +82,4 @@ defmodule PhoenixDatastar.Actions do
       else: "@post(#{path}, {#{session}, #{headers}})"
   end
 
-  @doc false
-  @deprecated "Use build_event/2 instead — session_id and event_path are now read from Datastar signals"
-  def build_event(event_name, _session_id, _event_path, opts) do
-    build_event(event_name, opts)
-  end
 end

@@ -1,35 +1,10 @@
 defmodule PhoenixDatastar.Elements do
   @moduledoc """
-  Functions for patching and removing DOM elements.
+  Functions for patching and removing DOM elements via SSE.
 
-  This module provides utilities for updating HTML content on the client
-  through Server-Sent Events.
-
-  ## Patching Elements
-
-  Update DOM elements with new HTML content:
-
-      sse
-      |> PhoenixDatastar.Elements.patch("<div>New content</div>", selector: "#target")
-
-  ## Patch Modes
-
-  - `:outer` - Replace the entire element (default)
-  - `:inner` - Replace only the inner HTML
-  - `:prepend` - Insert content at the beginning of the element's children
-  - `:append` - Insert content at the end of the element's children
-  - `:before` - Insert content before the element
-  - `:after` - Insert content after the element
-  - `:replace` - Replace the element with new content
-
-  ## Removing Elements
-
-  Remove elements from the DOM:
-
-      sse
-      |> PhoenixDatastar.Elements.remove("#target")
-      |> PhoenixDatastar.Elements.remove_by_id("my-element")
-
+      sse |> patch("<div>New content</div>", selector: "#target")
+      sse |> patch("<p>Inner</p>", selector: "#target", mode: :inner)
+      sse |> remove("#target")
   """
 
   alias PhoenixDatastar.SSE
@@ -98,41 +73,6 @@ defmodule PhoenixDatastar.Elements do
   end
 
   @doc """
-  Patches elements with formatted HTML using interpolation.
-
-  ## Example
-
-      sse
-      |> patchf(
-        ~s(<div class="user">%{name} - %{email}</div>),
-        [name: "Alice", email: "alice@example.com"],
-        selector: "#user-info"
-      )
-
-  """
-  @spec patchf(SSE.t(), String.t(), keyword(), keyword()) :: SSE.t()
-  def patchf(sse, format, values, opts) do
-    html = :io_lib.format(to_charlist(format), values) |> to_string()
-    patch(sse, html, opts)
-  end
-
-  @doc """
-  Patches elements by ID.
-
-  Convenience function for patching with an ID selector.
-
-  ## Example
-
-      sse |> patch_by_id("my-element", "<div>Content</div>")
-
-  """
-  @spec patch_by_id(SSE.t(), String.t(), String.t(), keyword()) :: SSE.t()
-  def patch_by_id(sse, id, html, opts \\ []) do
-    opts = Keyword.put(opts, :selector, "##{id}")
-    patch(sse, html, opts)
-  end
-
-  @doc """
   Removes elements from the DOM by selector.
 
   ## Options
@@ -160,44 +100,6 @@ defmodule PhoenixDatastar.Elements do
 
     SSE.send_event!(sse, @event_type, data_lines, event_opts)
   end
-
-  @doc """
-  Removes an element by ID.
-
-  Convenience function equivalent to calling `remove/3` with an ID selector.
-
-  ## Example
-
-      sse |> remove_by_id("temporary-message")
-
-  """
-  @spec remove_by_id(SSE.t(), String.t(), keyword()) :: SSE.t()
-  def remove_by_id(sse, id, opts \\ []) do
-    remove(sse, "##{id}", opts)
-  end
-
-  # Convenience functions for patch modes
-
-  @doc "Patches with :outer mode (replaces entire element)"
-  def patch_outer(sse, html, opts), do: patch(sse, html, Keyword.put(opts, :mode, :outer))
-
-  @doc "Patches with :inner mode (replaces inner HTML)"
-  def patch_inner(sse, html, opts), do: patch(sse, html, Keyword.put(opts, :mode, :inner))
-
-  @doc "Patches with :prepend mode (inserts at beginning)"
-  def patch_prepend(sse, html, opts), do: patch(sse, html, Keyword.put(opts, :mode, :prepend))
-
-  @doc "Patches with :append mode (inserts at end)"
-  def patch_append(sse, html, opts), do: patch(sse, html, Keyword.put(opts, :mode, :append))
-
-  @doc "Patches with :before mode (inserts before element)"
-  def patch_before(sse, html, opts), do: patch(sse, html, Keyword.put(opts, :mode, :before))
-
-  @doc "Patches with :after mode (inserts after element)"
-  def patch_after(sse, html, opts), do: patch(sse, html, Keyword.put(opts, :mode, :after))
-
-  @doc "Patches with :replace mode (replaces element)"
-  def patch_replace(sse, html, opts), do: patch(sse, html, Keyword.put(opts, :mode, :replace))
 
   # Private helpers
 

@@ -1,42 +1,14 @@
 defmodule PhoenixDatastar.Scripts do
   @moduledoc """
-  Functions for executing JavaScript on the client.
+  Executes JavaScript on the client via SSE.
 
-  This module provides utilities for sending JavaScript to execute
-  in the browser through Server-Sent Events.
+  Appends a `<script>` tag to the body using `datastar-patch-elements`.
 
-  Internally, this uses `datastar-patch-elements` to append a `<script>` tag
-  to the body, which is the approach used by the official Datastar SDKs.
-
-  ## Executing Scripts
-
-  Send JavaScript to run on the client:
-
-      sse
-      |> PhoenixDatastar.Scripts.execute("alert('Hello!')")
-
-      # Keep script tag in DOM (default auto-removes after execution)
-      sse
-      |> PhoenixDatastar.Scripts.execute("console.log('debug')", auto_remove: false)
-
-      # With script attributes (e.g., ES modules)
-      sse
-      |> PhoenixDatastar.Scripts.execute("import {...}", attributes: %{type: "module"})
-
-  ## Convenience Functions
-
-  Common script operations have dedicated helpers:
-
-      sse
-      |> PhoenixDatastar.Scripts.redirect("/dashboard")
-
-      sse
-      |> PhoenixDatastar.Scripts.console_log("Debug info", level: :warn)
-
+      sse |> execute("alert('Hello!')")
+      sse |> execute("console.log('debug')", auto_remove: false)
   """
 
   alias PhoenixDatastar.Elements
-  alias PhoenixDatastar.Helpers.JS
 
   @doc """
   Executes JavaScript on the client by appending a script tag to the body.
@@ -96,63 +68,6 @@ defmodule PhoenixDatastar.Scripts do
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
     Elements.patch(sse, script_html, element_opts)
-  end
-
-  @doc """
-  Redirects the browser to a new URL.
-
-  ## Options
-
-  Same as `execute/3`.
-
-  ## Examples
-
-      sse |> redirect("/dashboard")
-      sse |> redirect("https://example.com")
-
-  """
-  @spec redirect(PhoenixDatastar.SSE.t(), String.t(), keyword()) :: PhoenixDatastar.SSE.t()
-  def redirect(sse, url, opts \\ []) when is_binary(url) do
-    # Use setTimeout to ensure proper browser history handling (especially in Firefox)
-    execute(sse, "setTimeout(function(){window.location='#{JS.escape_string(url)}'},0)", opts)
-  end
-
-  @doc """
-  Logs a message to the browser console.
-
-  ## Options
-
-  - `:level` - Console method to use: `:log`, `:warn`, `:error`, `:info`, `:debug` (default: :log)
-  - Plus all options from `execute/3`
-
-  ## Examples
-
-      sse |> console_log("Debug message")
-      sse |> console_log("Warning!", level: :warn)
-      sse |> console_log(%{user: "alice", action: "login"}, level: :info)
-
-  """
-  @spec console_log(PhoenixDatastar.SSE.t(), term(), keyword()) :: PhoenixDatastar.SSE.t()
-  def console_log(sse, message, opts \\ []) do
-    {level, opts} = Keyword.pop(opts, :level, :log)
-
-    level_str =
-      case level do
-        :log -> "log"
-        :warn -> "warn"
-        :error -> "error"
-        :info -> "info"
-        :debug -> "debug"
-        _ -> "log"
-      end
-
-    js_message =
-      case message do
-        msg when is_binary(msg) -> "'#{JS.escape_string(msg)}'"
-        msg -> Jason.encode!(msg)
-      end
-
-    execute(sse, "console.#{level_str}(#{js_message})", opts)
   end
 
   # Private helpers

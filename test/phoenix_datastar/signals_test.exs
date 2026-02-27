@@ -46,21 +46,4 @@ defmodule PhoenixDatastar.SignalsTest do
     end
   end
 
-  describe "read_as/2" do
-    defmodule TestSignals do
-      defstruct [:count, :name]
-    end
-
-    test "converts signals to a struct" do
-      conn = %Plug.Conn{
-        method: "GET",
-        query_params: %{"datastar" => ~s({"count": 10, "name": "test"})}
-      }
-
-      {:ok, signals} = Signals.read_as(conn, TestSignals)
-
-      assert signals.count == 10
-      assert signals.name == "test"
-    end
-  end
 end

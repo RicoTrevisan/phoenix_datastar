@@ -1,32 +1,10 @@
 defmodule PhoenixDatastar.Signals do
   @moduledoc """
-  Functions for reading and patching Datastar signals.
+  Functions for reading and patching Datastar signals via SSE.
 
-  Signals represent client-side reactive state that can be synchronized
-  between the server and browser.
-
-  ## Reading Signals
-
-  Signals can be read from GET requests (query parameters) or from the
-  request body for other HTTP methods:
-
-      # Read signals into a map
       signals = PhoenixDatastar.Signals.read(conn)
-
-      # Read signals into a struct
-      {:ok, user_signals} = PhoenixDatastar.Signals.read_as(conn, UserSignals)
-
-  ## Patching Signals
-
-  Send signal updates to the client:
-
-      sse
-      |> PhoenixDatastar.Signals.patch(%{count: 42, message: "Hello"})
-
-      # Only patch if the signal doesn't exist on the client
-      sse
-      |> PhoenixDatastar.Signals.patch(%{count: 42}, only_if_missing: true)
-
+      sse |> patch(%{count: 42, message: "Hello"})
+      sse |> patch(%{count: 42}, only_if_missing: true)
   """
 
   alias PhoenixDatastar.SSE
@@ -68,30 +46,6 @@ defmodule PhoenixDatastar.Signals do
 
       _ ->
         %{}
-    end
-  end
-
-  @doc """
-  Reads signals from a connection and decodes them into a struct.
-
-  ## Example
-
-      defmodule UserSignals do
-        defstruct [:name, :email, :count]
-      end
-
-      {:ok, signals} = PhoenixDatastar.Signals.read_as(conn, UserSignals)
-
-  """
-  @spec read_as(Plug.Conn.t(), module()) :: {:ok, struct()} | {:error, term()}
-  def read_as(conn, module) do
-    signals = read(conn)
-
-    try do
-      struct = struct(module, map_to_keyword(signals))
-      {:ok, struct}
-    rescue
-      e -> {:error, e}
     end
   end
 
@@ -145,23 +99,6 @@ defmodule PhoenixDatastar.Signals do
     SSE.send_event!(sse, @event_type, data_lines, event_opts)
   end
 
-  @doc """
-  Patches signals only if they don't exist on the client.
-
-  Convenience function equivalent to calling `patch/3` with `only_if_missing: true`.
-
-  ## Example
-
-      sse
-      |> PhoenixDatastar.Signals.patch_if_missing(%{count: 42})
-
-  """
-  @spec patch_if_missing(SSE.t(), map(), keyword()) :: SSE.t()
-  def patch_if_missing(sse, signals, opts \\ []) do
-    opts = Keyword.put(opts, :only_if_missing, true)
-    patch(sse, signals, opts)
-  end
-
   # Private helpers
 
   defp decode_signals(""), do: %{}
@@ -172,13 +109,6 @@ defmodule PhoenixDatastar.Signals do
       {:ok, map} -> map
       {:error, _} -> %{}
     end
-  end
-
-  defp map_to_keyword(map) when is_map(map) do
-    Enum.map(map, fn
-      {k, v} when is_binary(k) -> {String.to_atom(k), v}
-      {k, v} when is_atom(k) -> {k, v}
-    end)
   end
 
   defp maybe_add_only_if_missing(lines, false), do: lines

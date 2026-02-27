@@ -6,7 +6,7 @@ defmodule PhoenixDatastar.NavPlugTest do
 
   test "falls back to hard reload script when soft navigation is not authorized" do
     conn =
-      build_conn(:post, "/__datastar/nav", %{"to" => "/outside", "token" => "invalid"})
+      build_conn(:post, "/__datastar/nav?_ds_to=/outside&_ds_mode=push", %{"token" => "invalid"})
       |> Plug.Conn.put_private(:phoenix_endpoint, PhoenixDatastar.NavPlugTest.Endpoint)
 
     conn = PhoenixDatastar.NavPlug.call(conn, [])
