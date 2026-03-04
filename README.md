@@ -1,5 +1,8 @@
 # PhoenixDatastar
 
+[![Hex.pm](https://img.shields.io/hexpm/v/phoenix_datastar)](https://hex.pm/packages/phoenix_datastar)
+[![Documentation](https://img.shields.io/badge/hex-docs-blue)](https://hexdocs.pm/phoenix_datastar)
+
 **A LiveView-like experience for Phoenix using Datastar's SSE + Signals architecture.**
 
 > This is still in alpha, I'm figuring out the right apis.
