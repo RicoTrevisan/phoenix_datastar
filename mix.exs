@@ -1,7 +1,7 @@
 defmodule PhoenixDatastar.MixProject do
   use Mix.Project
 
-  @version "0.1.13"
+  @version "0.1.14"
   @source_url "https://github.com/RicoTrevisan/phoenix_datastar"
 
   def project do

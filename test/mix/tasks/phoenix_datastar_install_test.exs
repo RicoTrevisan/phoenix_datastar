@@ -85,6 +85,47 @@ defmodule Mix.Tasks.PhoenixDatastar.InstallTest do
       """)
     end
 
+    test "adds __datastar scope to router" do
+      igniter =
+        phx_test_project()
+        |> Mix.Tasks.PhoenixDatastar.Install.igniter()
+
+      diff = Igniter.Test.diff(igniter, only: "lib/test_web/router.ex")
+
+      assert diff =~ ~s(scope "/__datastar" do)
+    end
+
+    test "adds StreamPlug route to __datastar scope" do
+      igniter =
+        phx_test_project()
+        |> Mix.Tasks.PhoenixDatastar.Install.igniter()
+
+      diff = Igniter.Test.diff(igniter, only: "lib/test_web/router.ex")
+
+      assert diff =~ "PhoenixDatastar.StreamPlug"
+    end
+
+    test "adds NavPlug route to __datastar scope" do
+      igniter =
+        phx_test_project()
+        |> Mix.Tasks.PhoenixDatastar.Install.igniter()
+
+      diff = Igniter.Test.diff(igniter, only: "lib/test_web/router.ex")
+
+      assert diff =~ "PhoenixDatastar.NavPlug"
+    end
+
+    test "adds fetch_session and protect_from_forgery to __datastar scope" do
+      igniter =
+        phx_test_project()
+        |> Mix.Tasks.PhoenixDatastar.Install.igniter()
+
+      diff = Igniter.Test.diff(igniter, only: "lib/test_web/router.ex")
+
+      assert diff =~ "fetch_session"
+      assert diff =~ "protect_from_forgery"
+    end
+
     test "adds datastar script to root layout" do
       igniter =
         phx_test_project()
@@ -106,13 +147,13 @@ defmodule Mix.Tasks.PhoenixDatastar.InstallTest do
       end)
     end
 
-    test "manual step notices include datastar route example" do
+    test "manual step notices include datastar_session example" do
       igniter =
         phx_test_project()
         |> Mix.Tasks.PhoenixDatastar.Install.igniter()
 
       assert_has_notice(igniter, fn notice ->
-        String.contains?(notice, ~s(datastar "/counter", CounterStar))
+        String.contains?(notice, "datastar_session :default do")
       end)
     end
 
@@ -256,6 +297,9 @@ defmodule Mix.Tasks.PhoenixDatastar.InstallTest do
       # Router changes
       assert diff =~ "import PhoenixDatastar.Router"
       assert diff =~ ~s("sse")
+      assert diff =~ ~s(scope "/__datastar" do)
+      assert diff =~ "PhoenixDatastar.StreamPlug"
+      assert diff =~ "PhoenixDatastar.NavPlug"
 
       # Web module changes
       assert diff =~ "def live_datastar do"

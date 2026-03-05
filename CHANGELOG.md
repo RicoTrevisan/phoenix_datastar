@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.14] - 2026-03-05
+
+### Changed
+- Installer now adds the global `/__datastar` scope with `StreamPlug` and `NavPlug` routes automatically. Previously this was a manual step.
+- Installer notice now shows `datastar_session` usage example.
+
 ## [0.1.13] - 2026-02-27
 
 ### Added

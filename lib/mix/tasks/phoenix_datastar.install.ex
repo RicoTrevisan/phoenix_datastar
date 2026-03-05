@@ -11,8 +11,9 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
   2. Enable stripping of debug annotations in dev (for SSE patches)
   3. Add `import PhoenixDatastar.Router` to your router
   4. Add `"sse"` to the browser pipeline's `:accepts` plug
-  5. Add `def live_datastar` and `def datastar` to your web module
-  6. Add the Datastar JavaScript to your root layout
+  5. Add the global `/__datastar` scope with `StreamPlug` and `NavPlug` routes
+  6. Add `def live_datastar` and `def datastar` to your web module
+  7. Add the Datastar JavaScript to your root layout
   """
 
   use Igniter.Mix.Task
@@ -37,6 +38,7 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
     |> configure_strip_debug_annotations()
     |> add_router_import()
     |> add_sse_to_browser_pipeline()
+    |> add_datastar_scope()
     |> add_live_datastar_to_web_module(web_module)
     |> add_datastar_script_to_layout(web_module_path)
     |> add_manual_step_notices(web_module_path)
@@ -94,6 +96,81 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
       Igniter.add_warning(
         igniter,
         "Could not find router. Please add \"sse\" to plug :accepts in browser pipeline manually."
+      )
+    end
+  end
+
+  defp add_datastar_scope(igniter) do
+    {igniter, router} = Igniter.Libs.Phoenix.select_router(igniter)
+
+    if router do
+      Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
+        # Check if __datastar scope already exists
+        case Igniter.Code.Function.move_to_function_call_in_current_scope(
+               zipper,
+               :scope,
+               [2, 3, 4],
+               &Igniter.Code.Function.argument_equals?(&1, 0, "/__datastar")
+             ) do
+          {:ok, _} ->
+            # Scope already exists
+            {:ok, zipper}
+
+          :error ->
+            scope_code = """
+            scope "/__datastar" do
+              pipe_through [:fetch_session, :protect_from_forgery]
+              get "/stream", PhoenixDatastar.StreamPlug, :stream
+              post "/nav", PhoenixDatastar.NavPlug, :navigate
+            end
+            """
+
+            # Find first existing scope to place before it
+            case Igniter.Code.Function.move_to_function_call_in_current_scope(
+                   zipper,
+                   :scope,
+                   [2, 3, 4]
+                 ) do
+              {:ok, zipper} ->
+                {:ok, Igniter.Code.Common.add_code(zipper, scope_code, placement: :before)}
+
+              :error ->
+                # No existing scope, add after the last pipeline
+                case Igniter.Code.Function.move_to_function_call_in_current_scope(
+                       zipper,
+                       :pipeline,
+                       2
+                     ) do
+                  {:ok, zipper} ->
+                    {:ok, Igniter.Code.Common.add_code(zipper, scope_code, placement: :after)}
+
+                  :error ->
+                    {:warning,
+                     """
+                     Could not find a suitable location in the router. Please add manually:
+
+                         scope "/__datastar" do
+                           pipe_through [:fetch_session, :protect_from_forgery]
+                           get "/stream", PhoenixDatastar.StreamPlug, :stream
+                           post "/nav", PhoenixDatastar.NavPlug, :navigate
+                         end
+                     """}
+                end
+            end
+        end
+      end)
+    else
+      Igniter.add_warning(
+        igniter,
+        """
+        Could not find router. Please add the Datastar scope manually:
+
+            scope "/__datastar" do
+              pipe_through [:fetch_session, :protect_from_forgery]
+              get "/stream", PhoenixDatastar.StreamPlug, :stream
+              post "/nav", PhoenixDatastar.NavPlug, :navigate
+            end
+        """
       )
     end
   end
@@ -218,9 +295,12 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
   defp add_manual_step_notices(igniter, web_module_path) do
     igniter
     |> Igniter.add_notice("""
-    Add routes in your router (lib/#{web_module_path}/router.ex):
+    Add routes in your router (lib/#{web_module_path}/router.ex).
+    For live views, wrap them in a datastar_session:
 
-        datastar "/counter", CounterStar
+        datastar_session :default do
+          datastar "/counter", CounterStar
+        end
 
     To customize the mount wrapper template, create your own HTML module
     and configure it in config/config.exs:

@@ -36,7 +36,7 @@ Add `phoenix_datastar` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:phoenix_datastar, "~> 0.1.13"}
+    {:phoenix_datastar, "~> 0.1.14"}
   ]
 end
 ```
@@ -80,7 +80,8 @@ scope "/", MyAppWeb do
 end
 ```
 
-For session-aware live navigation, add global Datastar endpoints and group routes with `datastar_session`:
+For session-aware live navigation, add global Datastar endpoints and group routes with `datastar_session`.
+The `/__datastar` scope is added automatically by `mix phoenix_datastar.install`:
 
 ```elixir
 import PhoenixDatastar.Router
