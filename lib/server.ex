@@ -18,6 +18,7 @@ defmodule PhoenixDatastar.Server do
   alias PhoenixDatastar.Elements
   alias PhoenixDatastar.Signals
   alias PhoenixDatastar.Scripts
+  alias PhoenixDatastar.SSE
 
   @doc """
   Starts a GenServer for a Datastar view session.
@@ -121,19 +122,34 @@ defmodule PhoenixDatastar.Server do
       {:datastar_events, events} ->
         Logger.debug("SSE #{length(events)} event(s)")
 
-        sse =
-          Enum.reduce(events, sse, fn
-            {:patch, selector, html}, sse ->
-              Elements.patch(sse, html, selector: selector)
+        if SSE.closed?(sse) do
+          Logger.debug("SSE connection already closed, discarding #{length(events)} event(s)")
+          sse
+        else
+          try do
+            sse =
+              Enum.reduce(events, sse, fn
+                {:patch, selector, html}, sse ->
+                  Elements.patch(sse, html, selector: selector)
 
-            {:patch, selector, html, opts}, sse ->
-              Elements.patch(sse, html, Keyword.put(opts, :selector, selector))
+                {:patch, selector, html, opts}, sse ->
+                  Elements.patch(sse, html, Keyword.put(opts, :selector, selector))
 
-            {:script, script, opts}, sse ->
-              Scripts.execute(sse, script, opts)
-          end)
+                {:script, script, opts}, sse ->
+                  Scripts.execute(sse, script, opts)
+              end)
 
-        enter_loop(sse, session_id)
+            enter_loop(sse, session_id)
+          rescue
+            e in RuntimeError ->
+              if String.contains?(e.message, "Failed to send SSE event") do
+                Logger.debug("SSE connection closed during send, stopping")
+                SSE.close(sse)
+              else
+                reraise e, __STACKTRACE__
+              end
+          end
+        end
 
       :datastar_stop ->
         Logger.info("SSE connection stopped for session: #{session_id}")
