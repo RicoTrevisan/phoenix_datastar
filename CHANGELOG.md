@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.15] - 2026-03-05
+
+### Added
+- Export `locals_without_parens` for `datastar` and `datastar_session` macros in `.formatter.exs`, so the Elixir formatter preserves the parenthesis-free style consistent with other Phoenix router macros like `get`, `post`, and `live`.
+- Installer now adds `:phoenix_datastar` to `import_deps` in the project's `.formatter.exs` via `Igniter.Project.Formatter.import_dep/2`.
+
 ## [0.1.14] - 2026-03-05
 
 ### Changed

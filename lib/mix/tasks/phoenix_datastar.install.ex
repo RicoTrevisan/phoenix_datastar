@@ -7,13 +7,14 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
       mix phoenix_datastar.install
 
   This will:
-  1. Add the Registry to your application's supervision tree
-  2. Enable stripping of debug annotations in dev (for SSE patches)
-  3. Add `import PhoenixDatastar.Router` to your router
-  4. Add `"sse"` to the browser pipeline's `:accepts` plug
-  5. Add the global `/__datastar` scope with `StreamPlug` and `NavPlug` routes
-  6. Add `def live_datastar` and `def datastar` to your web module
-  7. Add the Datastar JavaScript to your root layout
+  1. Add `:phoenix_datastar` to `import_deps` in `.formatter.exs`
+  2. Add the Registry to your application's supervision tree
+  3. Enable stripping of debug annotations in dev (for SSE patches)
+  4. Add `import PhoenixDatastar.Router` to your router
+  5. Add `"sse"` to the browser pipeline's `:accepts` plug
+  6. Add the global `/__datastar` scope with `StreamPlug` and `NavPlug` routes
+  7. Add `def live_datastar` and `def datastar` to your web module
+  8. Add the Datastar JavaScript to your root layout
   """
 
   use Igniter.Mix.Task
@@ -34,6 +35,7 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
       web_module |> Module.split() |> Enum.map(&Macro.underscore/1) |> Path.join()
 
     igniter
+    |> Igniter.Project.Formatter.import_dep(:phoenix_datastar)
     |> add_registry_to_supervision_tree()
     |> configure_strip_debug_annotations()
     |> add_router_import()
