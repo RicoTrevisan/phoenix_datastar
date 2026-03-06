@@ -299,10 +299,13 @@ Use `$signal_name` in Datastar attribute expressions:
 ```elixir
 <span data-text="$count"></span>
 <div data-show="$visible"></div>
-<input data-bind:value="$name" />
 ```
 
 ## Gotchas
+
+- **Datastar attributes use colons, not hyphens, for keys.** Write `data-on:click`, `data-bind:value`, `data-attr:disabled` — **never** `data-on-click` or `data-bind-value`. The colon separates the plugin name from the key.
+- **Datastar modifiers use double underscores.** Write `data-init__once`, `data-on:click__debounce.500ms` — **never** single underscores.
+- **`data-bind` takes a signal NAME, not an expression.** Write `data-bind="username"` — **never** `data-bind="$username"`. The `$` prefix is only for reading signal values in expression contexts like `data-text`, `data-show`, `data-on:*`, etc.
 
 - **Always include the target element in patch HTML.** `patch_elements("#count", ...)` does an outer replace — the rendered fragment must include the `<span id="count">...</span>` wrapper.
 - **Stateless views have no `handle_info/2`.** State is ephemeral and reconstructed from client signals on each POST.

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.16] - 2026-03-06
+
+### Added
+- **Datastar attributes skill**: Added pre-built `usage_rules` package skill at `usage-rules/skills/datastar-attributes/SKILL.md` with complete Datastar attribute reference (all 16 attribute plugins, actions, modifier syntax). Users can pull it in via `package_skills: [:phoenix_datastar]`.
+- **Datastar syntax gotchas in usage rules**: Added critical warnings about colon syntax (`data-on:click` not `data-on-click`), double-underscore modifiers (`data-init__once`), and `data-bind` taking a bare signal name (not `$name`).
+
+### Fixed
+- Fixed incorrect `data-bind:value="$name"` example in `usage-rules.md` — `data-bind` takes a signal name without the `$` prefix.
+
 ## [0.1.15] - 2026-03-05
 
 ### Added
