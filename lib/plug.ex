@@ -12,6 +12,7 @@ defmodule PhoenixDatastar.Plug do
   require Logger
 
   alias PhoenixDatastar.Server
+  alias PhoenixDatastar.Socket
   alias PhoenixDatastar.Helpers
   alias PhoenixDatastar.SSE
 
@@ -41,7 +42,7 @@ defmodule PhoenixDatastar.Plug do
     view = Keyword.get(opts, :view)
 
     # Get base path for event URLs (strip /stream or /event/... suffix)
-    base_path = get_base_path(conn.request_path)
+    base_path = Helpers.get_base_path(conn.request_path)
     conn = assign(conn, :base_path, base_path)
 
     # session_id is required for all requests
@@ -65,12 +66,6 @@ defmodule PhoenixDatastar.Plug do
     end
   end
 
-  defp get_base_path(path) do
-    path
-    |> String.replace(~r"/stream$", "")
-    |> String.replace(~r"/_event/[^/]+$", "")
-  end
-
   # GET /stream - SSE connection (requires view)
   defp dispatch(conn, "GET", nil, _session_id) do
     conn
@@ -83,7 +78,7 @@ defmodule PhoenixDatastar.Plug do
 
     # GenServer should already exist from page load, but ensure_started is idempotent
     session = Helpers.get_session_map(conn)
-    base_path = conn.assigns[:base_path] || get_base_path(conn.request_path)
+    base_path = conn.assigns[:base_path] || Helpers.get_base_path(conn.request_path)
     {:ok, _pid} = Server.ensure_started(view, session_id, conn.params, session, base_path)
 
     # Subscribe to receive updates (initial HTML already rendered on page load)
@@ -129,26 +124,17 @@ defmodule PhoenixDatastar.Plug do
 
   # Handle stateless view events synchronously
   defp handle_stateless_event(conn, view, session_id, event) do
-    base_path = conn.assigns[:base_path] || get_base_path(conn.request_path)
+    base_path = conn.assigns[:base_path] || Helpers.get_base_path(conn.request_path)
     session = Helpers.get_session_map(conn)
 
     # Create socket and call mount to initialize assigns, just like the live
     # flow does in Server.init. This ensures assigns set in mount (e.g. loaded
     # users, config) are available in handle_event. Signals start empty —
     # client signals arrive in the payload (conn.params).
-    socket = %PhoenixDatastar.Socket{
-      id: session_id,
-      view: view,
-      assigns: %{
-        session_id: session_id,
-        base_path: base_path,
-        stream_path: nil,
-        event_path: Path.join(base_path, "_event"),
-        flash: Map.get(session, "flash", %{})
-      },
-      signals: %{},
-      events: []
-    }
+    socket = Socket.new(session_id, view, base_path,
+      live: false,
+      flash: Map.get(session, "flash", %{})
+    )
 
     socket =
       case view.mount(conn.params, session, socket) do

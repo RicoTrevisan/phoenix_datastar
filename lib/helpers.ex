@@ -55,4 +55,27 @@ defmodule PhoenixDatastar.Helpers do
   def render_html(view, socket) do
     view.render(socket.assigns)
   end
+
+  @doc """
+  Extracts the base path from a request path by stripping Datastar suffixes.
+
+  Removes `/stream` suffix and `/_event/:event` patterns to get the view's base path.
+
+  ## Examples
+
+      iex> PhoenixDatastar.Helpers.get_base_path("/counter/stream")
+      "/counter"
+
+      iex> PhoenixDatastar.Helpers.get_base_path("/counter/_event/increment")
+      "/counter"
+
+      iex> PhoenixDatastar.Helpers.get_base_path("/counter")
+      "/counter"
+  """
+  @spec get_base_path(String.t()) :: String.t()
+  def get_base_path(path) do
+    path
+    |> String.replace(~r"/stream$", "")
+    |> String.replace(~r"/_event/[^/]+$", "")
+  end
 end
