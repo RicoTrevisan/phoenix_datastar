@@ -120,9 +120,15 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
 
           :error ->
             scope_code = """
+            # Stream endpoint — authenticated via signed token, no CSRF needed
+            scope "/__datastar" do
+              pipe_through [:fetch_session]
+              post "/stream", PhoenixDatastar.StreamPlug, :stream
+            end
+
+            # Nav endpoint — needs CSRF protection
             scope "/__datastar" do
               pipe_through [:fetch_session, :protect_from_forgery]
-              get "/stream", PhoenixDatastar.StreamPlug, :stream
               post "/nav", PhoenixDatastar.NavPlug, :navigate
             end
             """
@@ -152,8 +158,12 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
                      Could not find a suitable location in the router. Please add manually:
 
                          scope "/__datastar" do
+                           pipe_through [:fetch_session]
+                           post "/stream", PhoenixDatastar.StreamPlug, :stream
+                         end
+
+                         scope "/__datastar" do
                            pipe_through [:fetch_session, :protect_from_forgery]
-                           get "/stream", PhoenixDatastar.StreamPlug, :stream
                            post "/nav", PhoenixDatastar.NavPlug, :navigate
                          end
                      """}
@@ -165,11 +175,15 @@ defmodule Mix.Tasks.PhoenixDatastar.Install do
       Igniter.add_warning(
         igniter,
         """
-        Could not find router. Please add the Datastar scope manually:
+        Could not find router. Please add the Datastar scopes manually:
+
+            scope "/__datastar" do
+              pipe_through [:fetch_session]
+              post "/stream", PhoenixDatastar.StreamPlug, :stream
+            end
 
             scope "/__datastar" do
               pipe_through [:fetch_session, :protect_from_forgery]
-              get "/stream", PhoenixDatastar.StreamPlug, :stream
               post "/nav", PhoenixDatastar.NavPlug, :navigate
             end
         """

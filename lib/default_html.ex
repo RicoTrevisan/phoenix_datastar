@@ -34,7 +34,8 @@ defmodule PhoenixDatastar.DefaultHTML do
                 })
               )
             }
-            data-init__once={@stream_path && "@get('\#{@stream_path}', {openWhenHidden: true})"}
+            data-init={@stream_path && "@post('\#{@stream_path}', {retryMaxCount: Infinity})"}
+            data-on:online__window={@stream_path && "@post('\#{@stream_path}', {retryMaxCount: Infinity})"}
           >
             {@inner_html}
           </div>
@@ -76,7 +77,8 @@ defmodule PhoenixDatastar.DefaultHTML do
           })
         )
       }
-      data-init__once={@stream_path && "@get('#{@stream_path}', {openWhenHidden: true})"}
+      data-init={@stream_path && "@post('#{@stream_path}', {retryMaxCount: Infinity})"}
+      data-on:online__window={@stream_path && "@post('#{@stream_path}', {retryMaxCount: Infinity})"}
     >
       {@inner_html}
     </div>

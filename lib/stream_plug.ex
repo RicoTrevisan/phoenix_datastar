@@ -2,7 +2,7 @@ defmodule PhoenixDatastar.StreamPlug do
   @moduledoc """
   Global stream endpoint for Datastar live sessions.
 
-  Handles `GET /__datastar/stream?token=...` requests. Verifies the stream token
+  Handles `POST /__datastar/stream?token=...` requests. Verifies the stream token
   (using Phoenix.Token-based signing), subscribes to the session's GenServer, and
   enters the SSE loop (`PhoenixDatastar.Server.enter_loop/2`).
 
@@ -11,7 +11,7 @@ defmodule PhoenixDatastar.StreamPlug do
 
   ## Expected route
 
-      get "/__datastar/stream", PhoenixDatastar.StreamPlug, :stream
+      post "/__datastar/stream", PhoenixDatastar.StreamPlug, :stream
   """
 
   import Plug.Conn

@@ -3,10 +3,18 @@
 [![Hex.pm](https://img.shields.io/hexpm/v/phoenix_datastar)](https://hex.pm/packages/phoenix_datastar)
 [![Documentation](https://img.shields.io/badge/hex-docs-blue)](https://hexdocs.pm/phoenix_datastar)
 
-**A LiveView-like experience for Phoenix using Datastar's SSE + Signals architecture.**
+> ## ⚠️ Deprecated
+>
+> **PhoenixDatastar is deprecated.** Use [**Dstar**](https://hex.pm/packages/dstar) instead.
+>
+> Dstar is a lighter, pure-functions library for building Datastar + Plug/Phoenix
+> applications without the LiveView-like GenServer abstraction. It gives you direct
+> control over SSE connections, signal patching, and DOM updates with simple function
+> calls — no processes, no magic.
+>
+> This package will not receive further updates.
 
-> This is still in alpha, I'm figuring out the right apis.
-> Comments and ideas welcome.
+**A LiveView-like experience for Phoenix using Datastar's SSE + Signals architecture.**
 
 Build interactive Phoenix applications with [Datastar](https://data-star.dev/)'s simplicity: SSE instead of WebSockets, hypermedia over JSON, and a focus on performance.
 
@@ -36,7 +44,7 @@ Add `phoenix_datastar` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:phoenix_datastar, "~> 0.1.16"}
+    {:phoenix_datastar, "~> 0.2.0"}
   ]
 end
 ```
@@ -86,11 +94,15 @@ The `/__datastar` scope is added automatically by `mix phoenix_datastar.install`
 ```elixir
 import PhoenixDatastar.Router
 
-# Global Datastar endpoints for SSE streaming and soft navigation.
-# These need session access for CSRF protection.
+# Stream endpoint — authenticated via signed token, no CSRF needed
+scope "/__datastar" do
+  pipe_through [:fetch_session]
+  post "/stream", PhoenixDatastar.StreamPlug, :stream
+end
+
+# Nav endpoint — needs CSRF protection
 scope "/__datastar" do
   pipe_through [:fetch_session, :protect_from_forgery]
-  get "/stream", PhoenixDatastar.StreamPlug, :stream
   post "/nav", PhoenixDatastar.NavPlug, :navigate
 end
 
@@ -171,7 +183,8 @@ defmodule MyAppWeb.DatastarHTML do
           })
         )
       }
-      data-init__once={@stream_path && "@get('#{@stream_path}', {openWhenHidden: true})"}
+      data-init={@stream_path && "@post('#{@stream_path}', {retryMaxCount: Infinity})"}
+      data-on:online__window={@stream_path && "@post('#{@stream_path}', {retryMaxCount: Infinity})"}
     >
       {@inner_html}
     </div>
@@ -299,7 +312,7 @@ end
 PhoenixDatastar uses a hybrid of request/response and streaming:
 
 1. **Initial Page Load (HTTP)**: `GET /counter` calls `mount/3` and `render/1`, returns full HTML
-2. **SSE Connection**: `GET /__datastar/stream?token=...` opens a persistent connection, starts or reuses a GenServer (live views only)
+2. **SSE Connection**: `POST /__datastar/stream?token=...` opens a persistent connection, starts or reuses a GenServer (live views only)
 3. **User Interactions**: `POST /counter/_event/:event` triggers `handle_event/3`, updates pushed via SSE (live) or returned directly (stateless)
 
 ### Session Navigation (alpha)
@@ -316,7 +329,7 @@ When routes are grouped under the same `datastar_session`, you can navigate betw
 
 #### Key Modules
 
-- **`PhoenixDatastar.StreamPlug`** — Handles `GET /__datastar/stream?token=...`. Verifies the stream token, subscribes to the session's GenServer, and enters the SSE loop.
+- **`PhoenixDatastar.StreamPlug`** — Handles `POST /__datastar/stream?token=...`. Verifies the stream token, subscribes to the session's GenServer, and enters the SSE loop.
 - **`PhoenixDatastar.NavPlug`** — Handles `POST /__datastar/nav`. Verifies the nav token, matches the target route, and either performs soft navigation or falls back to a full reload.
 - **StreamToken** — Signs and verifies Phoenix tokens for stream/nav authorization. Token expiry defaults to 1 hour, configurable via `config :phoenix_datastar, :stream_token_max_age, 3600`.
 - **`PhoenixDatastar.RouteRegistry`** — Runtime route lookup using metadata compiled by `datastar/3`.

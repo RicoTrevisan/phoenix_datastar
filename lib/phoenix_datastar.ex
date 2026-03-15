@@ -1,5 +1,11 @@
 defmodule PhoenixDatastar do
   @moduledoc """
+  > ### Deprecated {: .warning}
+  >
+  > **PhoenixDatastar is deprecated.** Use [Dstar](https://hex.pm/packages/dstar) instead.
+  > Dstar is a lighter, pure-functions library for Datastar + Plug/Phoenix apps
+  > without the LiveView-like GenServer abstraction.
+
   PhoenixDatastar view behaviour for building interactive web applications.
 
   ## Assigns vs Signals
@@ -122,6 +128,11 @@ defmodule PhoenixDatastar do
       end
 
     quote do
+      IO.warn(
+        "PhoenixDatastar is deprecated. Use Dstar (https://hex.pm/packages/dstar) instead.",
+        Macro.Env.stacktrace(__ENV__)
+      )
+
       @behaviour PhoenixDatastar
 
       # Register and set the attribute for persistence

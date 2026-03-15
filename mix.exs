@@ -1,7 +1,7 @@
 defmodule PhoenixDatastar.MixProject do
   use Mix.Project
 
-  @version "0.1.16"
+  @version "0.2.0"
   @source_url "https://github.com/RicoTrevisan/phoenix_datastar"
 
   def project do
@@ -15,7 +15,7 @@ defmodule PhoenixDatastar.MixProject do
       docs: docs(),
       name: "PhoenixDatastar",
       description:
-        "A LiveView-like experience for Phoenix using Datastar's SSE + Signals architecture",
+        "[DEPRECATED — use Dstar instead] A LiveView-like experience for Phoenix using Datastar's SSE + Signals architecture",
       source_url: @source_url,
       homepage_url: @source_url
     ]

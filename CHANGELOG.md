@@ -1,5 +1,57 @@
 # Changelog
 
+## [0.2.0] - 2026-03-15
+
+### ⚠️ Deprecated
+
+**PhoenixDatastar is deprecated.** Use [Dstar](https://hex.pm/packages/dstar) instead.
+Dstar is a lighter, pure-functions library for Datastar + Plug/Phoenix apps without the
+LiveView-like GenServer abstraction. This is the final release of PhoenixDatastar.
+
+### Changed
+- **SSE stream connection now uses `@post` instead of `@get`** — `DefaultHTML` now renders
+  `data-init="@post(..., {retryMaxCount: Infinity})"` instead of
+  `data-init__once="@get(..., {openWhenHidden: true})"`. This sends signals with the
+  SSE connection request (the Datastar-idiomatic approach) and retries forever on disconnect.
+- **Auto-reconnect on network recovery** — Added `data-on:online__window` attribute to
+  `DefaultHTML` so the SSE connection is re-established when the browser comes back online.
+- **Stream route changed from GET to POST** — The `/__datastar/stream` route should now be
+  defined as `post "/stream"` in your router. The stream is authenticated via a signed token,
+  so it does not require CSRF protection — place it in a scope with only `:fetch_session`.
+
+### Added
+- **`PhoenixDatastar.Plugs.RenameCsrfParam`** — New plug that copies a non-prefixed CSRF
+  signal (default `"csrf"`) to `conn.body_params["_csrf_token"]` so `Plug.CSRFProtection`
+  can find it. Useful for mixed SSE + form routes where Datastar's `_`-prefixed signals
+  are never included in the request body.
+
+### Migration
+
+If upgrading from 0.1.x, update your router:
+
+```elixir
+# Before (0.1.x)
+scope "/__datastar" do
+  pipe_through [:fetch_session, :protect_from_forgery]
+  get "/stream", PhoenixDatastar.StreamPlug, :stream
+  post "/nav", PhoenixDatastar.NavPlug, :navigate
+end
+
+# After (0.2.0)
+scope "/__datastar" do
+  pipe_through [:fetch_session]
+  post "/stream", PhoenixDatastar.StreamPlug, :stream
+end
+
+scope "/__datastar" do
+  pipe_through [:fetch_session, :protect_from_forgery]
+  post "/nav", PhoenixDatastar.NavPlug, :navigate
+end
+```
+
+If you have a custom `html_module`, update it to use `data-init` with `@post` and
+add `data-on:online__window` (see `PhoenixDatastar.DefaultHTML` for the updated example).
+
 ## [0.1.16] - 2026-03-06
 
 ### Added
